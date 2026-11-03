@@ -10,22 +10,19 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.JukeboxBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(JukeboxBlockEntity.class)
 public abstract class JukeboxBlockEntityMixin {
-    @Unique
-    private long tickCount = -1;
     @Inject(method = "tick", at = @At("TAIL"))
-    private void tick(Level level, BlockPos blockPos, BlockState blockState, CallbackInfo ci) {
+    private static void tick(Level level, BlockPos blockPos, BlockState blockState, JukeboxBlockEntity jukebox, CallbackInfo ci) {
         if (level.isClientSide())
             return;
-        if (++tickCount % 20 != 0)
+        // 1.21.1 tick is a static ticker: no instance state, throttle by game time instead.
+        if (level.getGameTime() % 20 != 0)
             return;
-        JukeboxBlockEntity jukebox = (JukeboxBlockEntity) (Object) this;
         if (!jukebox.getSongPlayer().isPlaying()) {
             return;
         }

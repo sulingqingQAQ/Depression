@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 @Mixin(BaseCommandBlock.class)
 public abstract class BaseCommandBlockMixin {
-    @ModifyArg(method = "performCommand", at = @At(value = "INVOKE", target = "Lnet/minecraft/commands/Commands;performPrefixedCommand(Lnet/minecraft/commands/CommandSourceStack;Ljava/lang/String;)I"), index = 0)
+    @ModifyArg(method = "performCommand", at = @At(value = "INVOKE", target = "Lnet/minecraft/commands/Commands;performPrefixedCommand(Lnet/minecraft/commands/CommandSourceStack;Ljava/lang/String;)V"), index = 0)
     private CommandSourceStack makeCommandSilent(CommandSourceStack commandSourceStack) {
         return commandSourceStack.withSuppressedOutput();
     }

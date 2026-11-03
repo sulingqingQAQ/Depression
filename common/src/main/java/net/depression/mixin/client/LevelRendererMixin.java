@@ -7,6 +7,7 @@ import net.depression.client.DepressionClient;
 import net.depression.client.rhythmcraft.ClientPlayingChart;
 import net.depression.rhythmcraft.PlayingChart;
 import net.minecraft.client.Camera;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.*;
@@ -46,7 +47,8 @@ public abstract class LevelRendererMixin {
 
     @Shadow @Final private Minecraft minecraft;
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientLevel;entitiesForRendering()Ljava/lang/Iterable;"))
-    private void renderFalseEntities(PoseStack poseStack, float f, long l, boolean bl, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f matrix4f, CallbackInfo ci) {
+    // 1.21.1：renderLevel 改为 (DeltaTracker, boolean, Camera, GameRenderer, LightTexture, Matrix4f, Matrix4f)，PoseStack 不再是参数而是方法内局部变量
+    private void renderFalseEntities(DeltaTracker deltaTracker, boolean bl, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, Matrix4f frustumMatrix, Matrix4f projectionMatrix, CallbackInfo ci, @Local PoseStack poseStack) {
         if (level == null) {
             return;
         }
