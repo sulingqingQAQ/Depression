@@ -12,7 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 public class MentalTraitButton extends ImageButton {
-    public static final ResourceLocation FRAME_LOCATION = new ResourceLocation(Depression.MOD_ID, "textures/mental_trait/frame_16.png");
+    public static final ResourceLocation FRAME_LOCATION = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/mental_trait/frame_16.png");
     private final MentalTraitSelectionScreen screen;
     private final int baseY;
     private String id;
@@ -23,7 +23,7 @@ public class MentalTraitButton extends ImageButton {
     private final int charCenterOffset;
     public MentalTraitButton(MentalTraitSelectionScreen screen, int baseY, String id) {
         super(0, 0, screen.screenHeight - 8, screen.screenHeight / 4, 0, 0, 0, // i:x  j:y  k:长  l:宽 m:图标起始x坐标 n:图标起始y坐标 o:图标的y轴偏移量
-                new ResourceLocation(Depression.MOD_ID, "textures/mental_trait/" + id + ".png"), 16, 16, // 图标的大小
+                ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/mental_trait/" + id + ".png"), 16, 16, // 图标的大小
                 (button) -> ((MentalTraitButton) button).onPressButton(),
                 Component.translatable("depression.mental_trait." + id));
         this.baseY = baseY;

@@ -22,13 +22,13 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.IOException;
 
 public class GameEndScreen extends UncloseableScreen {
-    private static final ResourceLocation TEXT_AUTHORS = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/text_authors.png");
-    private static final ResourceLocation RETRY_BUTTON = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/retry_button.png");
-    private static final ResourceLocation TEXT_YOUR_SCORE = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/text_your_score.png");
-    private static final ResourceLocation TEXT_NEW_BEST_SCORE = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/text_new_best_score.png");
-    private static final ResourceLocation TEXT_NOT_BEST_SCORE = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/text_not_best_score.png");
-    private static final ResourceLocation TEXT_STAT = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/text_stat.png");
-    private static final ResourceLocation CONTINUE_BUTTON = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement/continue_button.png");
+    private static final ResourceLocation TEXT_AUTHORS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/text_authors.png");
+    private static final ResourceLocation RETRY_BUTTON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/retry_button.png");
+    private static final ResourceLocation TEXT_YOUR_SCORE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/text_your_score.png");
+    private static final ResourceLocation TEXT_NEW_BEST_SCORE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/text_new_best_score.png");
+    private static final ResourceLocation TEXT_NOT_BEST_SCORE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/text_not_best_score.png");
+    private static final ResourceLocation TEXT_STAT = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/text_stat.png");
+    private static final ResourceLocation CONTINUE_BUTTON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement/continue_button.png");
 
     ClientPlayingChart playingChart;
     int score;

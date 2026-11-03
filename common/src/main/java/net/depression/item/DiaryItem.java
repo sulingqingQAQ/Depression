@@ -3,16 +3,21 @@ package net.depression.item;
 import net.depression.client.ClientActionbarHint;
 import net.depression.client.ClientDiaryUpdater;
 import net.depression.server.Registry;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.Filterable;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.WrittenBookItem;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.WrittenBookContent;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
 
 public class DiaryItem extends WrittenBookItem {
 
@@ -20,17 +25,40 @@ public class DiaryItem extends WrittenBookItem {
         super(properties);
     }
 
+    private static long getLastWriteTime(ItemStack stack) {
+        CustomData custom = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        if (custom.contains("last_write_time")) {
+            return custom.copyTag().getLong("last_write_time");
+        }
+        return -1L;
+    }
+
+    private static void setLastWriteTime(ItemStack stack, long time) {
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putLong("last_write_time", time));
+    }
+
+    private static void ensureBookContent(ItemStack stack, Player player) {
+        WrittenBookContent content = stack.get(DataComponents.WRITTEN_BOOK_CONTENT);
+        if (content == null) {
+            WrittenBookContent created = new WrittenBookContent(
+                    Filterable.passThrough(Component.translatable("item.depression.diary").getString()),
+                    player.getName().getString(),
+                    0,
+                    new ArrayList<>(),
+                    false);
+            stack.set(DataComponents.WRITTEN_BOOK_CONTENT, created);
+        }
+    }
+
     @Override
     public @NotNull InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand interactionHand) {
         ItemStack itemStack = player.getItemInHand(interactionHand);
-        CompoundTag compoundTag = itemStack.getOrCreateTag();
+        long lastWrite = getLastWriteTime(itemStack);
         long todayTime = level.getDayTime() % 24000L;
-        if (!compoundTag.contains("last_write_time")) { //如果这本日记没有写过
+        if (lastWrite < 0) { //如果这本日记没有写过
             if (todayTime >= 12544L) { //如果已经到了晚上，则为日记加上Tag并更新日记
-                compoundTag.putString("title", Component.translatable("item.depression.diary").getString());
-                compoundTag.putString("author", player.getName().getString());
-                compoundTag.putLong("last_write_time", level.getDayTime());
-                itemStack.setTag(compoundTag);
+                ensureBookContent(itemStack, player);
+                setLastWriteTime(itemStack, level.getDayTime());
                 if (!level.isClientSide()) {
                     Registry.diaryUpdate((ServerPlayer) player, itemStack);
                 }
@@ -45,10 +73,8 @@ public class DiaryItem extends WrittenBookItem {
             }
         }
         else { //如果这本日记写过
-            long lastWriteTime = compoundTag.getLong("last_write_time");
-            if (todayTime >= 12544L && level.getDayTime() - lastWriteTime >= 12544) { //如果已经到了晚上且距离上次写的时间 >= 12544 tick，则为日记加上Tag并更新日记
-                compoundTag.putLong("last_write_time", level.getDayTime());
-                itemStack.setTag(compoundTag);
+            if (todayTime >= 12544L && level.getDayTime() - lastWrite >= 12544) { //如果已经到了晚上且距离上次写的时间 >= 12544 tick，则为日记加上Tag并更新日记
+                setLastWriteTime(itemStack, level.getDayTime());
                 if (!level.isClientSide()) {
                     Registry.diaryUpdate((ServerPlayer) player, itemStack);
                 }

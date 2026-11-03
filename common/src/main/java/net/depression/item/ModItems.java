@@ -28,9 +28,9 @@ public class ModItems {
             () -> new AntiDepressantItem(2, "item.depression.mdd_capsule.desc"));
 
     public static final RegistrySupplier<Item> MANIA_TABLET = ITEMS.register("mania_tablet",
-            () -> new MedicineItem(ModEffects.ANTI_MANIA.get(), 24000, 0, "item.depression.mania_tablet.desc"));
+            () -> new MedicineItem(ModEffects.ANTI_MANIA, 24000, 0, "item.depression.mania_tablet.desc"));
     public static final RegistrySupplier<Item> INSOMNIA_TABLET = ITEMS.register("insomnia_tablet",
-            () -> new MedicineItem("depression:insomnia_tablet", ModEffects.SLEEPINESS.get(), 6000, 0, 300, 500, "item.depression.insomnia_tablet.desc"));
+            () -> new MedicineItem("depression:insomnia_tablet", ModEffects.SLEEPINESS, 6000, 0, 300, 500, "item.depression.insomnia_tablet.desc"));
 
     public static final RegistrySupplier<Item> RIBBON_BANNER_PATTERN = ITEMS.register("ribbon_banner_pattern",
             () -> new BannerPatternItem(ModBannerPatternTags.PATTERN_RIBBON, new Item.Properties().stacksTo(1).arch$tab(ModCreativeTabs.ITEMS_TAB)));

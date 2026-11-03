@@ -27,7 +27,8 @@ import java.util.Objects;
 
 @Mixin(BookViewScreen.class)
 public abstract class BookViewScreenMixin extends Screen {
-    @Unique private static final ResourceLocation DIARY_LOCATION = new ResourceLocation(Depression.MOD_ID, "textures/gui/diary.png");
+    @Unique
+    private static final ResourceLocation DIARY_LOCATION = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/gui/diary.png");
     @Shadow private BookViewScreen.BookAccess bookAccess;
 
     @Shadow private int cachedPage;
@@ -49,10 +50,10 @@ public abstract class BookViewScreenMixin extends Screen {
 
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void render(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
-        if (!(bookAccess instanceof DiaryAccess)) {
+        if (!DiaryAccess.isDiary(bookAccess)) {
             return;
         }
-        this.renderBackground(guiGraphics);
+        this.renderBackground(guiGraphics, i, j, f);
         int k = (this.width - 192) / 2;
         guiGraphics.blit(DIARY_LOCATION, k, 2, 0, 0, 192, 192);
         if (this.cachedPage != this.currentPage) {

@@ -8,19 +8,21 @@ import net.depression.network.DiaryUpdatePacket;
 import net.depression.rhythmcraft.PlayingChart;
 import net.depression.rhythmcraft.RhythmCraftProfile;
 import net.depression.world.ParticleFormulaInstance;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.Connection;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.Filterable;
 import net.minecraft.server.network.ServerLoginPacketListenerImpl;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.WrittenBookContent;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -90,7 +92,7 @@ public class Registry {
     public static boolean isPending(Player player) {
         return pendingPlayers.containsKey(player.getUUID());
     }
-    public static void receiveMentalTraitPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveMentalTraitPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         String id = buf.readCharSequence(buf.readableBytes(), DiaryUpdatePacket.charset).toString();
         Player player = packetContext.getPlayer();
         UUID uuid = player.getUUID();
@@ -116,29 +118,33 @@ public class Registry {
         diaryUpdateMap.put(player.getUUID(), diary);
         DiaryUpdatePacket.sendToPlayer(player);
     }
-    public static void receiveDiaryUpdatePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveDiaryUpdatePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ItemStack diary = diaryUpdateMap.get(packetContext.getPlayer().getUUID());
         CharSequence rawContent = buf.readCharSequence(buf.readableBytes(), DiaryUpdatePacket.charset);
-        CompoundTag compoundTag = diary.getOrCreateTag();
-        ListTag oldPages = compoundTag.getList("pages", 8);
-        ListTag pages = new ListTag();
+        java.util.List<Filterable<Component>> pages = new java.util.ArrayList<>();
         StringBuilder pageContent = new StringBuilder();
         for (int i = 0; i < rawContent.length(); ++i) {
             char c = rawContent.charAt(i);
             if (c == '/') {
-                pages.add(StringTag.valueOf(pageContent.toString()));
+                pages.add(Filterable.passThrough(Component.literal(pageContent.toString())));
                 pageContent = new StringBuilder();
             }
             else {
                 pageContent.append(c);
             }
         }
-        pages.addAll(oldPages);
+        WrittenBookContent oldContent = diary.get(DataComponents.WRITTEN_BOOK_CONTENT);
+        if (oldContent != null) {
+            pages.addAll(oldContent.pages());
+        }
         while (pages.size() > 100) {
             pages.remove(pages.size()-1);
         }
-        compoundTag.put("pages", pages);
-        diary.setTag(compoundTag);
+        String title = oldContent != null ? oldContent.title().raw() : "Diary";
+        String author = oldContent != null ? oldContent.author() : packetContext.getPlayer().getName().getString();
+        int generation = oldContent != null ? oldContent.generation() : 0;
+        diary.set(DataComponents.WRITTEN_BOOK_CONTENT,
+                new WrittenBookContent(Filterable.passThrough(title), author, generation, pages, false));
         diaryUpdateMap.remove(packetContext.getPlayer().getUUID());
     }
 }

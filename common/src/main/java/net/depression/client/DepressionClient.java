@@ -14,7 +14,8 @@ import net.depression.rhythmcraft.SongSortType;
 import net.depression.screen.rhythmcraft.GameGuiRenderer;
 import net.depression.screen.rhythmcraft.RCSelectionScreen;
 import net.depression.util.OggStreamPlayer;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -104,7 +105,7 @@ public class DepressionClient {
         ClientConfig.load();
     }
 
-    public static void receiveRCProfilePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveRCProfilePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         int stringSize = buf.readInt();
         rcProfile.sortType = SongSortType.valueOf(buf.readCharSequence(stringSize, StandardCharsets.UTF_8).toString());
         rcProfile.difficulty = buf.readInt();

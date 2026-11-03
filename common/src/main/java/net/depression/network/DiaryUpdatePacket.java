@@ -6,7 +6,8 @@ import net.depression.Depression;
 import net.depression.item.diary.ConditionComponents;
 import net.depression.mental.MentalStatus;
 import net.depression.server.Registry;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -14,17 +15,17 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 public class DiaryUpdatePacket {
-    public static final ResourceLocation DIARY_UPDATE_PACKET = new ResourceLocation(Depression.MOD_ID, "diary_update_packet");
+    public static final ResourceLocation DIARY_UPDATE_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "diary_update_packet");
     public static Charset charset = StandardCharsets.UTF_8;
 
     public static void sendToServer(String content) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
         buf.writeCharSequence(content, charset);
         NetworkManager.sendToServer(DIARY_UPDATE_PACKET, buf);
     }
 
     public static void sendToPlayer(ServerPlayer player) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
         MentalStatus mentalStatus = Registry.mentalStatus.get(player.getUUID());
         double mentalHealthValue;
         if (mentalStatus == null) {

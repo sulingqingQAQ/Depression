@@ -4,7 +4,8 @@ import dev.architectury.networking.NetworkManager;
 import net.depression.network.RhythmCraftPacket;
 import net.depression.server.Registry;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
@@ -105,12 +106,12 @@ public class RhythmCraftProfile {
         }
         return profile;
     }
-    public static void onReceiveRequest(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceiveRequest(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ServerPlayer player = (ServerPlayer) packetContext.getPlayer();
         RhythmCraftProfile profile = getProfileByServerPlayer(player);
         RhythmCraftPacket.sendProfileS2C(profile, player);
     }
-    public static void onReceiveProfileUpdate(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceiveProfileUpdate(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         Player player = packetContext.getPlayer();
         RhythmCraftProfile profile = getProfileByServerPlayer(player);
         int stringSize = buf.readInt();

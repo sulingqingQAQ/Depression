@@ -12,7 +12,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.BookViewScreen;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
@@ -34,7 +35,7 @@ public class ClientMentalStatus {
     public ClientPTSDManager ptsdManager = new ClientPTSDManager();
     public String mentalIllnessString;
     public final double mentalHealthMaxValue = 100d;
-    private static final ResourceLocation EMOTION = new ResourceLocation(Depression.MOD_ID, "textures/gui/emotion.png");
+    private static final ResourceLocation EMOTION = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/gui/emotion.png");
 
     public void reset() {
         emotionValue = 0d;
@@ -46,17 +47,17 @@ public class ClientMentalStatus {
         mentalIllnessString = "healthy";
     }
 
-    public static void receiveMentalTraitPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveMentalTraitPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         isMentalTraitSelected = false;
     }
 
-    public void receiveEmotionPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveEmotionPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         emotionValue = buf.readDouble();
         isInCombat = buf.readBoolean();
         emotionLevel = getEmotionLevel();
         //Minecraft.getInstance().gui.setOverlayMessage(Component.literal(String.format("情绪值: %.2f 精神健康值: %.2f", emotionValue, mentalHealthValue)), false);
     }
-    public void receiveMentalHealthPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveMentalHealthPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         mentalHealthValue = buf.readDouble();
         int prevMentalHealthId = mentalHealthId;
         mentalHealthId = buf.readInt();
@@ -83,7 +84,7 @@ public class ClientMentalStatus {
         Player player = minecraft.player;
 
         if (ClientDiaryUpdater.curDiaryItem != null) { //打开日记
-            minecraft.setScreen(new BookViewScreen(new DiaryAccess(ClientDiaryUpdater.curDiaryItem)));
+            minecraft.setScreen(new BookViewScreen(DiaryAccess.fromStack(ClientDiaryUpdater.curDiaryItem)));
             ClientDiaryUpdater.curDiaryItem = null;
         }
 

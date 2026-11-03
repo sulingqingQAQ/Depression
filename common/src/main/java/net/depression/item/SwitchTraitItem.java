@@ -22,7 +22,7 @@ public class SwitchTraitItem extends Item {
         this.lore = lore;
     }
     @Override
-    public void appendHoverText(ItemStack stack, Level level, List<Component> list, TooltipFlag flag) {
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> list, TooltipFlag flag) {
         list.add(Component.translatable(lore).withStyle(ChatFormatting.GRAY));
     }
     @Override

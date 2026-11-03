@@ -16,6 +16,7 @@ import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
@@ -28,7 +29,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.FlowerPotBlock;
-import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
@@ -217,9 +218,7 @@ public class MentalStatus {
             if (!mentalIllness.isMania) { //躁狂期间精神健康值不随情绪改变
                 if (emotionValue < 0) {
                     if (mentalIllness.mentalHealthId == 4) {
-                        MobEffect antiDepression = ModEffects.ANTI_DEPRESSION.get();
-                        MobEffect antiMania = ModEffects.ANTI_MANIA.get();
-                        if (player.hasEffect(antiDepression) && player.hasEffect(antiMania) && player.getEffect(antiMania).getAmplifier() >= 2) {
+                        if (player.hasEffect(ModEffects.ANTI_DEPRESSION) && player.hasEffect(ModEffects.ANTI_MANIA) && player.getEffect(ModEffects.ANTI_MANIA).getAmplifier() >= 2) {
                             mentalHealthValue += emotionValue * MENTAL_HEALTH_CHANGE_RATE * mentalTrait.mentalHurtMultiplier / 4;
                         }
                     }
@@ -264,10 +263,10 @@ public class MentalStatus {
             }
             double emotionModifier = emotionValue * 1.5d / 100d;
             if (combatCountdown > 0 && emotionModifier < 0) { //如果处于战斗状态且情绪比较负面，则清除速度的负面加成
-                speedModifier = new AttributeModifier("depression:speed_modifier", 0, AttributeModifier.Operation.MULTIPLY_TOTAL);
+                speedModifier = new AttributeModifier(ResourceLocation.fromNamespaceAndPath("depression", "speed_modifier"), 0, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
             }
             else {
-                speedModifier = new AttributeModifier("depression:speed_modifier", emotionModifier - getMentalHealthModifier(), AttributeModifier.Operation.MULTIPLY_TOTAL);
+                speedModifier = new AttributeModifier(ResourceLocation.fromNamespaceAndPath("depression", "speed_modifier"), emotionModifier - getMentalHealthModifier(), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
             }
             if (emotionModifier < 0 && !mentalTrait.isBadEmotionLowerCombat) {
                 emotionModifier = 0;
@@ -275,7 +274,7 @@ public class MentalStatus {
             if (emotionModifier > 0 && !mentalTrait.isGoodEmotionHigherCombat) {
                 emotionModifier = 0;
             }
-            attributeModifier = new AttributeModifier("depression:emotion_modifier", emotionModifier - getMentalHealthModifier(), AttributeModifier.Operation.MULTIPLY_TOTAL);
+            attributeModifier = new AttributeModifier(ResourceLocation.fromNamespaceAndPath("depression", "emotion_modifier"), emotionModifier - getMentalHealthModifier(), AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
             movementSpeed.addTransientModifier(speedModifier);
             attackDamage.addTransientModifier(attributeModifier);
             attackSpeed.addTransientModifier(attributeModifier);

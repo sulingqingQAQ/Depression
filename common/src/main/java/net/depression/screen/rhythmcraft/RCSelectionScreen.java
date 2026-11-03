@@ -15,7 +15,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
@@ -25,16 +26,16 @@ import java.io.IOException;
 import java.util.*;
 
 public class RCSelectionScreen extends Screen {
-    public static final ResourceLocation BACKGROUND = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/background.png");
-    private static final ResourceLocation BEST_SCORE = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/best_score.png");
-    private static final ResourceLocation SELECTION_BAR = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/selection_bar.png");
-    private static final ResourceLocation SELECTION_SHADOW = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/selection_shadow.png");
-    public static final ResourceLocation COVER_FRAME = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/cover_frame.png");
-    private static final ResourceLocation DIFFICULTY_LABEL = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/difficulty_label.png");
-    private static final ResourceLocation DIFFICULTY_SHADOW = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/difficulty_shadow.png");
-    private static final ResourceLocation START_BUTTON = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/start_button.png");
-    private static final ResourceLocation BACK_BUTTON = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/back_button.png");
-    private static final ResourceLocation EDIT_CHART_BUTTON = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/selection/edit_chart_button.png");
+    public static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/background.png");
+    private static final ResourceLocation BEST_SCORE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/best_score.png");
+    private static final ResourceLocation SELECTION_BAR = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/selection_bar.png");
+    private static final ResourceLocation SELECTION_SHADOW = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/selection_shadow.png");
+    public static final ResourceLocation COVER_FRAME = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/cover_frame.png");
+    private static final ResourceLocation DIFFICULTY_LABEL = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/difficulty_label.png");
+    private static final ResourceLocation DIFFICULTY_SHADOW = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/difficulty_shadow.png");
+    private static final ResourceLocation START_BUTTON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/start_button.png");
+    private static final ResourceLocation BACK_BUTTON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/back_button.png");
+    private static final ResourceLocation EDIT_CHART_BUTTON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/selection/edit_chart_button.png");
     public static final int black = 0x202020;
     public static final int white = 0xeeeeee;
     private static RCSelectionScreen instance;
@@ -89,7 +90,7 @@ public class RCSelectionScreen extends Screen {
         Minecraft.getInstance().setScreen(new RCLoadingScreen(curSong, DepressionClient.rcProfile.difficulty));
     }
 
-    public static void receiveAcceptEditPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveAcceptEditPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         DepressionClient.playingChart = new ClientPlayingChart(instance.curSong, DepressionClient.rcProfile.difficulty, true);
         Minecraft.getInstance().execute(() -> {
             instance.loadChart();

@@ -65,9 +65,9 @@ public abstract class PlayerMixin {
         MentalStatus mentalStatus = MentalStatus.getMentalStatusByServerPlayer(player);
         mentalStatus.mentalIllness.medicineDelay.remove("depression:insomnia_tablet");
         Boolean isInsomnia = mentalStatus.mentalIllness.isInsomnia;
-        boolean isSleepy = player.hasEffect(ModEffects.SLEEPINESS.get());
+        boolean isSleepy = player.hasEffect(ModEffects.SLEEPINESS);
         if (isSleepy) {
-            player.removeEffect(ModEffects.SLEEPINESS.get());
+            player.removeEffect(ModEffects.SLEEPINESS);
         }
         if ((!isSleepy && isInsomnia != null && isInsomnia) || mentalStatus.isMania()) { //如果失眠且没有困倦buff（或处于躁狂状态），则直接返回，不进行睡眠治疗
             return;

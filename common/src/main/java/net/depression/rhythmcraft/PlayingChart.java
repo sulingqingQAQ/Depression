@@ -22,7 +22,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.commands.TimeCommand;
@@ -272,7 +273,7 @@ public class PlayingChart extends ServerLevel {
         }
     }
 
-    public static void onReceiveReadChart(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceiveReadChart(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         String songId = buf.readCharSequence(buf.readInt(), StandardCharsets.UTF_8).toString();
         int difficulty = buf.readInt();
         boolean isEditMode = buf.readBoolean();
@@ -313,7 +314,7 @@ public class PlayingChart extends ServerLevel {
                 }
         );
     }
-    public static void onReceiveReady(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceiveReady(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ServerPlayer player = (ServerPlayer) packetContext.getPlayer();
         player.server.execute(
                 () -> {
@@ -325,7 +326,7 @@ public class PlayingChart extends ServerLevel {
                 }
         );
     }
-    public static void onReceiveLoadBack(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceiveLoadBack(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ServerPlayer player = (ServerPlayer) packetContext.getPlayer();
         player.server.execute(
                 () -> {
@@ -347,7 +348,7 @@ public class PlayingChart extends ServerLevel {
         );
     }
 
-    public static void onReceivePauseChange(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceivePauseChange(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         PlayingChart playingChart = PlayingChart.playingCharts.get(packetContext.getPlayer().getUUID());
         long tick = buf.readLong();
         playingChart.isPaused = !playingChart.isPaused;
@@ -361,7 +362,7 @@ public class PlayingChart extends ServerLevel {
             }
         });
     }
-    public static void onReceiveProgressChange(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void onReceiveProgressChange(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         PlayingChart playingChart = PlayingChart.playingCharts.get(packetContext.getPlayer().getUUID());
         long tick = buf.readLong();
         playingChart.tickCount = tick;

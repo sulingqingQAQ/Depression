@@ -2,7 +2,6 @@ package net.depression.rhythmcraft;
 
 import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.file.FileConfig;
-import com.mojang.blaze3d.audio.OggAudioStream;
 import dev.architectury.platform.Platform;
 import net.depression.Depression;
 import net.depression.config.ServerConfig;

@@ -16,7 +16,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.LerpingBossEvent;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -33,10 +34,10 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientPlayingChart {
-    public static final ResourceLocation PAUSE = new ResourceLocation("depression", "textures/rc_screen/modifying/pause.png");
-    public static final ResourceLocation PLAYING = new ResourceLocation("depression", "textures/rc_screen/modifying/playing.png");
-    public static final ResourceLocation FORWARD = new ResourceLocation("depression", "textures/rc_screen/modifying/forward.png");
-    public static final ResourceLocation BACKWARD = new ResourceLocation("depression", "textures/rc_screen/modifying/backward.png");
+    public static final ResourceLocation PAUSE = ResourceLocation.fromNamespaceAndPath("depression", "textures/rc_screen/modifying/pause.png");
+    public static final ResourceLocation PLAYING = ResourceLocation.fromNamespaceAndPath("depression", "textures/rc_screen/modifying/playing.png");
+    public static final ResourceLocation FORWARD = ResourceLocation.fromNamespaceAndPath("depression", "textures/rc_screen/modifying/forward.png");
+    public static final ResourceLocation BACKWARD = ResourceLocation.fromNamespaceAndPath("depression", "textures/rc_screen/modifying/backward.png");
     public SongProgressSlider songProgressSlider;
     public OffsetButton pauseButton, forwardButton, backwardButton;
     public long spaceInTicks = 1;
@@ -119,7 +120,7 @@ public class ClientPlayingChart {
         });
     }
 
-    public static void receivePlaySongPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receivePlaySongPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
         playingChart.isPlaying = true;
         try {
@@ -177,7 +178,7 @@ public class ClientPlayingChart {
         }
         DepressionClient.oggStreamPlayer.play();
     }
-    public static void receiveNoteChangePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveNoteChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         BlockPos pos = buf.readBlockPos();
         boolean isAdd = buf.readBoolean();
         ClientPlayingChart playingChart = DepressionClient.playingChart;
@@ -188,12 +189,12 @@ public class ClientPlayingChart {
             playingChart.highlightedNotes.remove(pos).setRemoved(Entity.RemovalReason.DISCARDED);
         }
     }
-    public static void receiveGameplayChangePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveGameplayChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
         playingChart.score.set(buf.readInt());
         playingChart.combo.set(buf.readInt());
     }
-    public static void receiveTimeChangePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveTimeChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
         long time = buf.readLong();
         Minecraft.getInstance().execute(() -> {
@@ -202,7 +203,7 @@ public class ClientPlayingChart {
             playingChart.isTimeFreeze = true;
         });
     }
-    public static void receiveGameEndPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveGameEndPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
         playingChart.isPlaying = false;
         int score = buf.readInt();
@@ -217,7 +218,7 @@ public class ClientPlayingChart {
         DepressionClient.rcProfile.newScore(id, difficulty, score);
     }
 
-    public static void receiveSpaceChangePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveSpaceChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
         playingChart.spaceInTicks = buf.readInt();
     }

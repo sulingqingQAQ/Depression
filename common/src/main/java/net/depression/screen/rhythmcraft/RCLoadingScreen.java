@@ -16,8 +16,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 public class RCLoadingScreen extends UncloseableScreen {
-    private static final ResourceLocation BLACK_LOADING_BAR = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/loading/black_loading_bar.png");
-    private static final ResourceLocation WHITE_LOADING_BAR = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/loading/white_loading_bar.png");
+    private static final ResourceLocation BLACK_LOADING_BAR = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/loading/black_loading_bar.png");
+    private static final ResourceLocation WHITE_LOADING_BAR = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/loading/white_loading_bar.png");
     private static final int loadingBarX = 195;
     private Song song;
     private Chart chart;

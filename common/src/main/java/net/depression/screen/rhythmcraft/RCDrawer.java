@@ -7,13 +7,13 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 
 public class RCDrawer {
-    public static final ResourceLocation RC_FONT_SMALL = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/font_3_5.png");
-    public static final ResourceLocation RANKINGS = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/rankings.png");
-    public static final ResourceLocation RANKINGS_WITH_TEXT = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/rankings_with_text.png");
-    private static final ResourceLocation SMALL_NUMBERS = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/small_numbers.png");
-    private static final ResourceLocation REGULAR_NUMBERS = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/regular_numbers.png");
-    private static final ResourceLocation SETTLEMENT_SMALL_NUMBERS = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement_small_numbers.png");
-    private static final ResourceLocation SETTLEMENT_LARGE_NUMBERS = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/settlement_large_numbers.png");
+    public static final ResourceLocation RC_FONT_SMALL = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/font_3_5.png");
+    public static final ResourceLocation RANKINGS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/rankings.png");
+    public static final ResourceLocation RANKINGS_WITH_TEXT = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/rankings_with_text.png");
+    private static final ResourceLocation SMALL_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/small_numbers.png");
+    private static final ResourceLocation REGULAR_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/regular_numbers.png");
+    private static final ResourceLocation SETTLEMENT_SMALL_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement_small_numbers.png");
+    private static final ResourceLocation SETTLEMENT_LARGE_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement_large_numbers.png");
 
     public static void drawStringSmall(GuiGraphics guiGraphics, String string, int x, int y, int k) {
         string = string.toUpperCase();

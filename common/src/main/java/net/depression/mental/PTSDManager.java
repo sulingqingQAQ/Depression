@@ -9,7 +9,8 @@ import net.depression.server.Registry;
 import net.depression.sound.ModSounds;
 import net.depression.util.TempValues;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -53,7 +54,7 @@ public class PTSDManager {
     public static void addEntry(String damageSource, String soundEvent) {
         soundEventMap.computeIfAbsent(soundEvent, k -> new ArrayList<>()).add(damageSource);
         damageSourceMap.computeIfAbsent(damageSource, k -> new ArrayList<>())
-                .add(SoundEvent.createVariableRangeEvent(new ResourceLocation(soundEvent)));
+                .add(SoundEvent.createVariableRangeEvent(ResourceLocation.parse(soundEvent)));
     }
 
     public synchronized void tick(ServerPlayer player) { //每秒调用一次
@@ -252,7 +253,7 @@ public class PTSDManager {
         }
     }
 
-    public static void receivePlaySoundPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receivePlaySoundPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         PTSDManager manager = Registry.mentalStatus.get(packetContext.getPlayer().getUUID()).ptsdManager;
         String soundEvent = buf.readCharSequence(buf.readableBytes(), StandardCharsets.UTF_8).toString();
         for (String damageSource : soundEventMap.get(soundEvent)) {

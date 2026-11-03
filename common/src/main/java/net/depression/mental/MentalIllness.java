@@ -106,7 +106,7 @@ public class MentalIllness {
             }
         }
 
-        boolean isSleepy = player.hasEffect(ModEffects.SLEEPINESS.get());
+        boolean isSleepy = player.hasEffect(ModEffects.SLEEPINESS);
         //处理是否失眠
         if (player.isSleepingLongEnough() && !isSleepy) {
             if (isInsomnia && random.nextDouble() < getInsomniaChance()) { //失眠概率随睡眠次数递减
@@ -150,7 +150,7 @@ public class MentalIllness {
     public void trigMentalFatigue() {
         if (mentalHealthId > 0) {
             double chance = getMentalFatigueChance() * mentalStatus.mentalTrait.fatigueChanceMultiplier;
-            MobEffectInstance antiDepression = player.getEffect(ModEffects.ANTI_DEPRESSION.get());
+            MobEffectInstance antiDepression = player.getEffect(ModEffects.ANTI_DEPRESSION);
             if (antiDepression != null) {
                 chance += (antiDepression.getAmplifier() + 1) * 0.02;
             }

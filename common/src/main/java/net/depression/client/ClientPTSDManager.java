@@ -13,7 +13,8 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.resources.sounds.TickableSoundInstance;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
@@ -44,10 +45,10 @@ public class ClientPTSDManager {
     private final Random random = new Random();
     public static ConcurrentHashMap<String, ConcurrentLinkedDeque<Pair<Entity, Long>>> falseEntities = new ConcurrentHashMap<>();
 
-    public static final ResourceLocation PTSD_ONSET_LEFT = new ResourceLocation(Depression.MOD_ID, "textures/symptom/ptsd_onset_left.png");
-    public static final ResourceLocation PTSD_ONSET_RIGHT = new ResourceLocation(Depression.MOD_ID, "textures/symptom/ptsd_onset_right.png");
-    public static final ResourceLocation PTSD_ONSET_UP = new ResourceLocation(Depression.MOD_ID, "textures/symptom/ptsd_onset_up.png");
-    public void receivePTSDOnsetPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static final ResourceLocation PTSD_ONSET_LEFT = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/symptom/ptsd_onset_left.png");
+    public static final ResourceLocation PTSD_ONSET_RIGHT = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/symptom/ptsd_onset_right.png");
+    public static final ResourceLocation PTSD_ONSET_UP = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/symptom/ptsd_onset_up.png");
+    public void receivePTSDOnsetPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         int level = buf.readInt();
         if (level > 0) {
             double distance = buf.readDouble();
@@ -138,7 +139,7 @@ public class ClientPTSDManager {
         }
     }
 
-    public static void receivePhotismPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receivePhotismPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         String id = buf.readUtf();
         EntityType.byString(id).ifPresent(entityType -> {
             Minecraft minecraft = Minecraft.getInstance();

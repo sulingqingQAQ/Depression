@@ -10,14 +10,27 @@ import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 
 public class ComputerBlock extends HorizontalDirectionalBlock {
+    public static final MapCodec<ComputerBlock> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(propertiesCodec()).apply(instance, ComputerBlock::new));
+
+    @Override
+    public MapCodec<ComputerBlock> codec() {
+        return CODEC;
+    }
+
     public ComputerBlock() {
-        super(BlockBehaviour.Properties.copy(Blocks.IRON_BLOCK).forceSolidOn().noOcclusion());
+        this(BlockBehaviour.Properties.ofFullCopy(Blocks.IRON_BLOCK).forceSolidOn().noOcclusion());
+    }
+
+    private ComputerBlock(BlockBehaviour.Properties properties) {
+        super(properties);
         this.registerDefaultState(this.getStateDefinition().any().setValue(FACING, Direction.NORTH));
 
     }

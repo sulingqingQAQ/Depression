@@ -15,17 +15,17 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ComputerScreen extends Screen {
-    private static final ResourceLocation WALLPAPER = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/wallpaper_default.png");
-    private static final ResourceLocation TASKBAR_BASE = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/taskbar_base.png");
-    public static final ResourceLocation TASKBAR_HOVER = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/taskbar_hover_full.png");
-    public static final ResourceLocation THIS_PC_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_this_pc.png");
-    public static final ResourceLocation CONTROL_PANEL_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_control_panel.png");
-    public static final ResourceLocation RECYCLE_BIN_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_recycle_bin.png");
-    public static final ResourceLocation BROWSER_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_browser.png");
-    public static final ResourceLocation RHYTHMCRAFT_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_rhythmcraft.png");
-    public static final ResourceLocation MESSAGE_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_message.png");
-    public static final ResourceLocation EMAIL_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_email.png");
-    public static final ResourceLocation DOCUMENT_ICON = new ResourceLocation(Depression.MOD_ID, "textures/computer_screen/desktop_icon_document.png");
+    private static final ResourceLocation WALLPAPER = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/wallpaper_default.png");
+    private static final ResourceLocation TASKBAR_BASE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/taskbar_base.png");
+    public static final ResourceLocation TASKBAR_HOVER = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/taskbar_hover_full.png");
+    public static final ResourceLocation THIS_PC_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_this_pc.png");
+    public static final ResourceLocation CONTROL_PANEL_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_control_panel.png");
+    public static final ResourceLocation RECYCLE_BIN_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_recycle_bin.png");
+    public static final ResourceLocation BROWSER_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_browser.png");
+    public static final ResourceLocation RHYTHMCRAFT_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_rhythmcraft.png");
+    public static final ResourceLocation MESSAGE_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_message.png");
+    public static final ResourceLocation EMAIL_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_email.png");
+    public static final ResourceLocation DOCUMENT_ICON = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/computer_screen/desktop_icon_document.png");
     public static final int black = 0x202020;
     public static final int white = 0xeeeeee;
     public static final int nameX1 = 32;

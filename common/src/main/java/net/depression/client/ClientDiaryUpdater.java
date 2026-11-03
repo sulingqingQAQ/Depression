@@ -8,18 +8,19 @@ import net.depression.network.DiaryUpdatePacket;
 import net.depression.util.Tools;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.StringSplitter;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.network.Filterable;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.WrittenBookContent;
 import net.minecraft.world.level.Level;
 
 import java.text.SimpleDateFormat;
@@ -33,7 +34,7 @@ public class ClientDiaryUpdater {
     public static InteractionHand interactionHand;
     public static ItemStack curDiaryItem;
     public static Random random = new Random();
-    public static final ResourceLocation writeSound = new ResourceLocation( "assets/diary_sound/write_diary");
+    public static final ResourceLocation writeSound = ResourceLocation.parse("assets/diary_sound/write_diary");
 
     public static void clear() {
         diaryItem = null;
@@ -49,7 +50,7 @@ public class ClientDiaryUpdater {
         ClientDiaryUpdater.interactionHand = interactionHand;
     }
 
-    public static void receiveDiaryUpdatePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public static void receiveDiaryUpdatePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -108,8 +109,7 @@ public class ClientDiaryUpdater {
         boolean isLatin = Component.translatable("diary.depression.is_latin").getString().equals("true");
 
         ItemStack itemStack = player.getItemInHand(interactionHand);
-        CompoundTag compoundTag = itemStack.getOrCreateTag();
-        ListTag listTag = new ListTag();
+        java.util.List<Filterable<Component>> newPages = new java.util.ArrayList<>();
         StringBuilder pageBuilder = new StringBuilder();
         StringBuilder sentToServerContent = new StringBuilder();
         StringSplitter splitter = ((FontAccess) Minecraft.getInstance().font).getSplitter();
@@ -135,7 +135,7 @@ public class ClientDiaryUpdater {
             text = text.substring(index);
             if (++line % 14 == 0) {
                 String pageText = pageBuilder.toString();
-                listTag.add(StringTag.valueOf(pageText));
+                newPages.add(Filterable.passThrough(Component.literal(pageText)));
                 sentToServerContent.append(pageText);
                 sentToServerContent.append('/');
                 pageBuilder = new StringBuilder();
@@ -143,16 +143,25 @@ public class ClientDiaryUpdater {
         }
         if (line % 14 != 0) { //如果最后一页不满14行
             String pageText = pageBuilder.toString();
-            listTag.add(StringTag.valueOf(pageText));
+            newPages.add(Filterable.passThrough(Component.literal(pageText)));
             sentToServerContent.append(pageText);
             sentToServerContent.append('/');
         }
 
-        //加入新的内容
-        ListTag oldListTag = compoundTag.getList("pages", 8);
-        listTag.addAll(oldListTag);
-        compoundTag.put("pages", listTag);
-        itemStack.setTag(compoundTag);
+        //加入新的内容：新页在前，旧页在后
+        WrittenBookContent oldContent = itemStack.get(DataComponents.WRITTEN_BOOK_CONTENT);
+        java.util.List<Filterable<Component>> merged = new java.util.ArrayList<>(newPages);
+        String title = Component.translatable("item.depression.diary").getString();
+        String author = player.getName().getString();
+        int generation = 0;
+        if (oldContent != null) {
+            merged.addAll(oldContent.pages());
+            title = oldContent.title().raw();
+            author = oldContent.author();
+            generation = oldContent.generation();
+        }
+        itemStack.set(DataComponents.WRITTEN_BOOK_CONTENT,
+                new WrittenBookContent(Filterable.passThrough(title), author, generation, merged, false));
         //打开日记界面
         curDiaryItem = itemStack;
         //向服务器发送更新

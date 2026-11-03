@@ -12,6 +12,6 @@ import net.minecraft.world.level.dimension.LevelStem;
 
 public class ModDimensionTypes {
     public static final ResourceKey<DimensionType> CHART_TYPE =
-            ResourceKey.create(Registries.DIMENSION_TYPE, new ResourceLocation(Depression.MOD_ID, "chart"));
+            ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "chart"));
 
 }

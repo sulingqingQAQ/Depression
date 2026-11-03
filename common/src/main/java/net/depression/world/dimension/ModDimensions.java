@@ -14,9 +14,9 @@ import java.awt.*;
 
 public class ModDimensions {
     public static final ResourceKey<Level> CHART =
-            ResourceKey.create(Registries.DIMENSION, new ResourceLocation(Depression.MOD_ID, "chart"));
+            ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "chart"));
     public static final ResourceKey<LevelStem> CHART_STEM =
-            ResourceKey.create(Registries.LEVEL_STEM, new ResourceLocation(Depression.MOD_ID, "chart"));
+            ResourceKey.create(Registries.LEVEL_STEM, ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "chart"));
     public static final ResourceKey<Level> TEST =
-            ResourceKey.create(Registries.DIMENSION, new ResourceLocation(Depression.MOD_ID, "test"));
+            ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "test"));
 }

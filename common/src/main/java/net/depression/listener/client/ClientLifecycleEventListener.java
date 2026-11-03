@@ -9,10 +9,7 @@ import net.depression.network.MentalTraitPacket;
 import net.depression.screen.MentalTraitSelectionScreen;
 import net.depression.util.OggStreamPlayer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.VideoSettingsScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
 
 public class ClientLifecycleEventListener {
     public static void onClientLevelLoad(ClientLevel clientLevel) {

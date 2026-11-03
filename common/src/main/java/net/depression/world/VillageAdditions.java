@@ -41,7 +41,7 @@ public class VillageAdditions {
         }
     }
     public static void addClinic(Registry<StructureTemplatePool> registry, String biome, int weight) {
-        StructureTemplatePool structureTemplatePool = registry.get(new ResourceLocation("village/" + biome + "/houses"));
+        StructureTemplatePool structureTemplatePool = registry.get(ResourceLocation.parse("village/" + biome + "/houses"));
         if (structureTemplatePool == null) {
             throw new IllegalStateException("Failed to find village pool " + biome + "/houses");
         }
@@ -49,14 +49,14 @@ public class VillageAdditions {
         List<Pair<StructurePoolElement, Integer>> rawTemplates = poolAccess.getRawTemplates() instanceof ArrayList ?
                 poolAccess.getRawTemplates() : new ArrayList<>(poolAccess.getRawTemplates());
 
-        SinglePoolElement addedElement = SinglePoolElement.single(new ResourceLocation(Depression.MOD_ID, "village/" + biome + "/houses/" + biome + "_psychological_clinic").toString()).apply(StructureTemplatePool.Projection.RIGID);
+        SinglePoolElement addedElement = SinglePoolElement.single(ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "village/" + biome + "/houses/" + biome + "_psychological_clinic").toString()).apply(StructureTemplatePool.Projection.RIGID);
         rawTemplates.add(Pair.of(addedElement, weight));
         poolAccess.getTemplates().add(addedElement);
         poolAccess.setRawTemplates(rawTemplates);
     }
 
     private static ResourceKey<PoiType> createKey(String path) {
-        return ResourceKey.create(Registries.POINT_OF_INTEREST_TYPE, new ResourceLocation(Depression.MOD_ID, path));
+        return ResourceKey.create(Registries.POINT_OF_INTEREST_TYPE, ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, path));
     }
 
     public static void register() {

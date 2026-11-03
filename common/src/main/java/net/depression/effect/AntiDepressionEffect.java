@@ -12,20 +12,21 @@ public class AntiDepressionEffect extends MobEffect {
         super(mobEffectCategory, color);
     }
     @Override
-    public boolean isDurationEffectTick(int tick, int amplifier) {
+    public boolean shouldApplyEffectTickThisTick(int tick, int amplifier) {
         return tick % 120 == 0;
     }
     @Override
-    public void applyEffectTick(LivingEntity livingEntity, int amplifier) {
+    public boolean applyEffectTick(LivingEntity livingEntity, int amplifier) {
         if (livingEntity instanceof ServerPlayer) {
             MentalStatus mentalStatus = Registry.mentalStatus.get(livingEntity.getUUID());
             if (mentalStatus == null) {
-                return;
+                return true;
             }
             int mentalHealthLevel = mentalStatus.mentalIllness.mentalHealthId;
             if (1 <= mentalHealthLevel && mentalHealthLevel <= 3) {
                 mentalStatus.mentalHealthValue += (amplifier + 1) * 0.05 * mentalStatus.mentalTrait.medicineEffectMultiplier;
             }
         }
+        return true;
     }
 }

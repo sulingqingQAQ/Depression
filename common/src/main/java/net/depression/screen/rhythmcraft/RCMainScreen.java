@@ -11,10 +11,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 public class RCMainScreen extends Screen {
-    private static final ResourceLocation TITLE = new ResourceLocation(Depression.MOD_ID, "textures/rc_screen/main/title.png");
-    private static final ResourceLocation SUBTITLE = new ResourceLocation(Depression.MOD_ID,"textures/rc_screen/main/subtitle.png");
-    private static final ResourceLocation CURTAIN = new ResourceLocation(Depression.MOD_ID,"textures/rc_screen/main/scroll_curtain.png");
-    private static final ResourceLocation BACKGROUND = new ResourceLocation(Depression.MOD_ID,"textures/rc_screen/main/scroll_background.png");
+    private static final ResourceLocation TITLE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/main/title.png");
+    private static final ResourceLocation SUBTITLE = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/main/subtitle.png");
+    private static final ResourceLocation CURTAIN = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/main/scroll_curtain.png");
+    private static final ResourceLocation BACKGROUND = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/main/scroll_background.png");
     ScaleButton startButton;
     long initTime;
     public RCMainScreen() {

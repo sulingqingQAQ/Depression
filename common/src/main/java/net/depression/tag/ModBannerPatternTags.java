@@ -7,5 +7,5 @@ import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.entity.BannerPattern;
 
 public class ModBannerPatternTags {
-    public static final TagKey<BannerPattern> PATTERN_RIBBON = TagKey.create(Registries.BANNER_PATTERN, new ResourceLocation(Depression.MOD_ID, "ribbon"));
+    public static final TagKey<BannerPattern> PATTERN_RIBBON = TagKey.create(Registries.BANNER_PATTERN, ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "ribbon"));
 }

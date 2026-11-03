@@ -21,7 +21,7 @@ public abstract class LocalPlayerMixin {
     @Inject(method = "openItemGui", at = @At("TAIL"))
     private void openItemGui(ItemStack itemStack, InteractionHand interactionHand, CallbackInfo ci) {
         if (itemStack.is(ModItems.DIARY.get())) {
-            Minecraft.getInstance().setScreen(new BookViewScreen(new DiaryAccess(itemStack)));
+            Minecraft.getInstance().setScreen(new BookViewScreen(DiaryAccess.fromStack(itemStack)));
         }
     }
 }

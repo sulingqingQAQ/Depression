@@ -3,8 +3,10 @@ package net.depression.client;
 import dev.architectury.networking.NetworkManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 
 import java.util.Random;
 
@@ -54,13 +56,13 @@ public class ClientActionbarHint {
         gui.setOverlayMessage(Component.translatable(string), false);
     }
 
-    public void receiveOverdosePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveOverdosePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         int level = buf.readInt();
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.medicine_overdose_" + level), false);
     }
 
-    public void receiveBipolarPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveBipolarPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientMentalStatus clientMentalStatus = DepressionClient.clientMentalStatus;
         clientMentalStatus.isMania = buf.readBoolean();
         Gui gui = Minecraft.getInstance().gui;
@@ -72,7 +74,7 @@ public class ClientActionbarHint {
         }
     }
 
-    public void receiveFishHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveFishHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -81,14 +83,14 @@ public class ClientActionbarHint {
             return;
         }
         fishHealLastTime = curTime;
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.fish_heal_hint_1")
                 .append(id)
                 .append(Component.translatable("message.depression.fish_heal_hint_2")), false);
     }
 
-    public void receiveFeedAnimalHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveFeedAnimalHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -97,14 +99,14 @@ public class ClientActionbarHint {
             return;
         }
         feedAnimalHealLastTime = curTime;
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.feed_animal_heal_hint_1")
                 .append(id)
                 .append(Component.translatable("message.depression.feed_animal_heal_hint_2")), false);
     }
 
-    public void receivePetHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receivePetHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -113,14 +115,14 @@ public class ClientActionbarHint {
             return;
         }
         petHealLastTime = curTime;
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.pet_heal_hint_1")
                 .append(id)
                 .append(Component.translatable("message.depression.pet_heal_hint_2")), false);
     }
 
-    public void receiveLootHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveLootHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -133,7 +135,7 @@ public class ClientActionbarHint {
         gui.setOverlayMessage(Component.translatable("message.depression.loot_heal_hint"), false);
     }
 
-    public void receiveNearbyBlockHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveNearbyBlockHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -142,13 +144,13 @@ public class ClientActionbarHint {
             return;
         }
         nearbyBlockHealLastTime = curTime;
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.nearby_block_heal_hint_1")
                 .append(id)
                 .append(Component.translatable("message.depression.nearby_block_heal_hint_2")), false);
     }
-    public void receiveBreakBlockHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveBreakBlockHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -157,13 +159,13 @@ public class ClientActionbarHint {
             return;
         }
         breakBlockHealLastTime = curTime;
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.break_block_heal_hint_1")
                 .append(id)
                 .append(Component.translatable("message.depression.break_block_heal_hint_2")), false);
     }
-    public void receiveKillEntityHealPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveKillEntityHealPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         if (Minecraft.getInstance().level == null) {
             return;
         }
@@ -172,20 +174,20 @@ public class ClientActionbarHint {
             return;
         }
         killEntityHealLastTime = curTime;
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable("message.depression.kill_entity_heal_hint_1")
                 .append(id)
                 .append(Component.translatable("message.depression.kill_entity_heal_hint_2")), false);
     }
 
-    public void receivePTSDFormPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receivePTSDFormPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         Minecraft minecraft = Minecraft.getInstance();
         Gui gui = minecraft.gui;
         if (minecraft.level == null) {
             return;
         }
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         long time = minecraft.level.getGameTime();
         if (time - formLastTime < 20 && !id.equals(formLastId)) { //1s内如果有多个不同的提示包，则合并显示
             gui.setOverlayMessage(Component.translatable(formHint1)
@@ -203,13 +205,13 @@ public class ClientActionbarHint {
         formLastTime = time;
     }
 
-    public void receivePTSDDispersePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receivePTSDDispersePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         Minecraft minecraft = Minecraft.getInstance();
         Gui gui = minecraft.gui;
         if (minecraft.level == null) {
             return;
         }
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         long time = minecraft.level.getGameTime();
         if (time - disperseLastTime < 20 && !id.equals(disperseLastId)) { //1s内如果有多个不同的提示包，则合并显示
             gui.setOverlayMessage(Component.translatable(disperseHint1)
@@ -227,13 +229,13 @@ public class ClientActionbarHint {
         disperseLastTime = time;
     }
 
-    public void receivePTSDRemissionPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receivePTSDRemissionPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         Minecraft minecraft = Minecraft.getInstance();
         Gui gui = minecraft.gui;
         if (minecraft.level == null) {
             return;
         }
-        Component id = buf.readComponent();
+        Component id = buf.readJsonWithCodec(ComponentSerialization.CODEC);
         long time = minecraft.level.getGameTime();
         if (!id.equals(remissionLastId) && time - remissionLastTime < 20) { //1s内如果有多个不同的提示包，则合并显示
             gui.setOverlayMessage(Component.translatable(remissionHint1)
@@ -251,7 +253,7 @@ public class ClientActionbarHint {
         remissionLastTime = time;
     }
 
-    public void receiveInsomniaPacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveInsomniaPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         Gui gui = Minecraft.getInstance().gui;
         String illness = switch (DepressionClient.clientMentalStatus.mentalHealthId) {
             case 1 -> "1";
@@ -264,7 +266,7 @@ public class ClientActionbarHint {
                 + illness + "_" + random.nextInt(3) + 1), false);
     }
 
-    public void receiveMentalFatiguePacket(FriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+    public void receiveMentalFatiguePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         Gui gui = Minecraft.getInstance().gui;
         gui.setOverlayMessage(Component.translatable(mentalFatigueHint), false);
     }
