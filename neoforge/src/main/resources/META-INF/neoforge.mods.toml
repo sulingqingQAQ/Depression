@@ -33,3 +33,6 @@ mandatory = true
 versionRange = "[13.0.0,)"
 ordering = "AFTER"
 side = "BOTH"
+
+[[mixins]]
+config = "depression.mixins.json"
