@@ -15,21 +15,21 @@ logoFile = "assets/depression/icon.png"
 
 [[dependencies.depression]]
 modId = "neoforge"
-mandatory = true
+type = "required"
 versionRange = "[21,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.depression]]
 modId = "minecraft"
-mandatory = true
+type = "required"
 versionRange = "[1.21.1, 1.22)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.depression]]
 modId = "architectury"
-mandatory = true
+type = "required"
 versionRange = "[13.0.0,)"
 ordering = "AFTER"
 side = "BOTH"

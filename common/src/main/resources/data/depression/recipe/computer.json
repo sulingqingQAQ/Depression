@@ -22,7 +22,8 @@
     "ORO"
   ],
   "result": {
-    "item": "depression:computer"
+    "count": 1,
+    "id": "depression:computer"
   },
   "show_notification": true
 }

@@ -3,6 +3,8 @@ package net.depression;
 import com.mojang.logging.LogUtils;
 import dev.architectury.event.events.common.*;
 import dev.architectury.networking.NetworkManager;
+import dev.architectury.platform.Platform;
+import dev.architectury.utils.Env;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import net.depression.block.ModBlocks;
 import net.depression.block.entity.ModBannerPatterns;
@@ -13,10 +15,7 @@ import net.depression.item.ModItems;
 import net.depression.key.KeyMappings;
 import net.depression.listener.*;
 import net.depression.mental.PTSDManager;
-import net.depression.network.DiaryUpdatePacket;
-import net.depression.network.MentalTraitPacket;
-import net.depression.network.PlaySoundPacket;
-import net.depression.network.RhythmCraftPacket;
+import net.depression.network.*;
 import net.depression.rhythmcraft.PlayingChart;
 import net.depression.rhythmcraft.ResourceReader;
 import net.depression.rhythmcraft.ResourceWriter;
@@ -25,6 +24,7 @@ import net.depression.server.Registry;
 import net.depression.sound.ModSounds;
 import net.depression.util.Tools;
 import net.depression.world.VillageAdditions;
+import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
 
 import javax.sound.sampled.spi.AudioFileReader;
@@ -65,6 +65,27 @@ public final class Depression {
                 RhythmCraftPacket.PAUSE_CHANGE_PACKET, PlayingChart::onReceivePauseChange);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
                 RhythmCraftPacket.PROGRESS_CHANGE_PACKET, PlayingChart::onReceiveProgressChange);
+        //Architectury 13：S2C 在客户端由 DepressionClient 登记接收；专用服务端必须单独登记类型，否则第一次 sendToPlayer 就会空指针
+        if (Platform.getEnvironment() == Env.SERVER) {
+            for (ResourceLocation id : new ResourceLocation[] {
+                    MentalStatusPacket.EMOTION_PACKET, MentalStatusPacket.MENTAL_HEALTH_PACKET,
+                    ActionbarHintPacket.OVERDOSE_PACKET, ActionbarHintPacket.BIPOLAR_PACKET,
+                    ActionbarHintPacket.NEARBY_BLOCK_HEAL_PACKET, ActionbarHintPacket.BREAK_BLOCK_HEAL_PACKET,
+                    ActionbarHintPacket.KILL_ENTITY_HEAL_PACKET, ActionbarHintPacket.FISH_HEAL_PACKET,
+                    ActionbarHintPacket.FEED_ANIMAL_HEAL_PACKET, ActionbarHintPacket.PET_HEAL_PACKET,
+                    ActionbarHintPacket.LOOT_HEAL_PACKET, ActionbarHintPacket.PTSD_FROM_PACKET,
+                    ActionbarHintPacket.PTSD_DISPERSE_PACKET, ActionbarHintPacket.PTSD_REMISSION_PACKET,
+                    ActionbarHintPacket.INSOMNIA_PACKET, ActionbarHintPacket.MENTAL_FATIGUE_PACKET,
+                    CloseEyePacket.CLOSE_EYE_PACKET, PTSDOnsetPacket.PTSD_ONSET_PACKET,
+                    DiaryUpdatePacket.DIARY_UPDATE_PACKET, PTSDOnsetPacket.PHOTISM_PACKET,
+                    MentalTraitPacket.MENTAL_TRAIT_PACKET, RhythmCraftPacket.PROFILE_PACKET,
+                    RhythmCraftPacket.PLAY_SONG_PACKET, RhythmCraftPacket.ACCEPT_EDIT_PACKET,
+                    RhythmCraftPacket.NOTE_CHANGE_PACKET, RhythmCraftPacket.GAMEPLAY_CHANGE_PACKET,
+                    RhythmCraftPacket.TIME_CHANGE_PACKET, RhythmCraftPacket.GAME_END_PACKET,
+                    RhythmCraftPacket.SPACE_CHANGE_PACKET}) {
+                NetworkManager.registerS2CPayloadType(id);
+            }
+        }
 
         CommandRegistrationEvent.EVENT.register(CommandRegistrationListener::registerCommands);
         PlayerEvent.SMELT_ITEM.register(PlayerEventListener::onSmeltItem);
