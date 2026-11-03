@@ -35,7 +35,13 @@ public class MinecraftMixin {
             }
         }
     }
-    @Inject(method = "clearLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("HEAD"))
+    //1.21.1 起原 clearLevel(Screen) 拆成 disconnect(Screen, boolean)（退出世界）和 clearClientLevel(Screen)（重新进入配置阶段）
+    @Inject(method = "disconnect(Lnet/minecraft/client/gui/screens/Screen;Z)V", at = @At("HEAD"))
+    private void onDisconnect(Screen screen, boolean keepResourcePacks, CallbackInfo ci) {
+        OggStreamPlayer oggStreamPlayer = DepressionClient.oggStreamPlayer;
+        oggStreamPlayer.stop();
+    }
+    @Inject(method = "clearClientLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("HEAD"))
     private void onClearLevel(Screen screen, CallbackInfo ci) {
         OggStreamPlayer oggStreamPlayer = DepressionClient.oggStreamPlayer;
         oggStreamPlayer.stop();
