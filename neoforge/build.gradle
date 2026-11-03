@@ -33,7 +33,9 @@ dependencies {
     implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:0.4.1"))
     implementation(include("io.github.llamalad7:mixinextras-neoforge:0.4.1"))
 
-    include 'com.googlecode.soundlibs:jorbis:0.0.17.4'
+    // jorbis is provided by vanilla (org.jcraft:jorbis) — embedding it again
+    // creates a duplicate JPMS module named "jorbis" and kills startup.
+    // vorbisspi/tritonus stay embedded (game does not ship them).
     include "com.googlecode.soundlibs:vorbisspi:1.0.3.3"
     include 'com.googlecode.soundlibs:tritonus-share:0.3.7.4'
     implementation 'com.googlecode.soundlibs:jorbis:0.0.17.4'
