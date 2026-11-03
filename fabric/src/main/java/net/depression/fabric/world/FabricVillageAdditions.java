@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.ai.village.poi.PoiType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.level.block.Block;
 
@@ -20,33 +21,33 @@ public class FabricVillageAdditions {
         TradeOfferHelper.registerVillagerOffers(VillageAdditions.PSYCHOLOGIST.get(),1,
                 factories-> {
                     factories.add((entity, randomSource) -> new MerchantOffer(
-                            new ItemStack(Items.EMERALD ,30),
+                            new ItemCost(Items.EMERALD,30),
                             new ItemStack(ModItems.MENTAL_HEALTH_SCALE.get(), 1),
                             64,5,0f));
                     factories.add((entity, randomSource) -> new MerchantOffer(
-                            new ItemStack(Items.EMERALD ,20),
+                            new ItemCost(Items.EMERALD,20),
                             new ItemStack(ModItems.MILD_DEPRESSION_TABLET.get(), 6),
                             10,5,0f));
                 });
         TradeOfferHelper.registerVillagerOffers(VillageAdditions.PSYCHOLOGIST.get(),2,
                 (factories) -> {
                     factories.add((entity, randomSource) -> new MerchantOffer(
-                            new ItemStack(Items.EMERALD, 30),
+                            new ItemCost(Items.EMERALD, 30),
                             new ItemStack(ModItems.INSOMNIA_TABLET.get(), 6),
                             10, 20, 0f));
                     factories.add((entity, randomSource) -> new MerchantOffer(
-                            new ItemStack(Items.EMERALD, 30),
+                            new ItemCost(Items.EMERALD, 30),
                             new ItemStack(ModItems.MODERATE_DEPRESSION_TABLET.get(), 6),
                             10, 20, 0f));
                 });
         TradeOfferHelper.registerVillagerOffers(VillageAdditions.PSYCHOLOGIST.get(),3,
                 (factories) -> {
                     factories.add((entity, randomSource) -> new MerchantOffer(
-                            new ItemStack(Items.EMERALD, 40),
+                            new ItemCost(Items.EMERALD, 40),
                             new ItemStack(ModItems.MDD_CAPSULE.get(), 6),
                             10, 40, 0f));
                     factories.add((entity, randomSource) -> new MerchantOffer(
-                            new ItemStack(Items.EMERALD, 40),
+                            new ItemCost(Items.EMERALD, 40),
                             new ItemStack(ModItems.MANIA_TABLET.get(), 6),
                             10, 40, 0f));
                 });
