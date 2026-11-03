@@ -20,6 +20,8 @@ public class RhythmCraftPacket {
     public static final ResourceLocation PLAY_SONG_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_play_song_packet");
     public static final ResourceLocation PROFILE_REQUEST_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_profile_request_packet");
     public static final ResourceLocation PROFILE_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_profile_packet");
+    //NeoForge 21.1 的 payload 注册表只按 id 判重、不分方向，同一个 id 不能既 C2S 又 S2C，所以客户端→服务端单独用一个 id
+    public static final ResourceLocation PROFILE_C2S_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_profile_c2s_packet");
     public static final ResourceLocation ACCEPT_EDIT_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_accept_edit_packet");
     public static final ResourceLocation NOTE_CHANGE_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_note_change_packet");
     public static final ResourceLocation PAUSE_CHANGE_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "rc_pause_packet");
@@ -84,7 +86,7 @@ public class RhythmCraftPacket {
                 buf.writeInt(profile.index);
                 break;
         }
-        NetworkManager.sendToServer(PROFILE_PACKET, buf);
+        NetworkManager.sendToServer(PROFILE_C2S_PACKET, buf);
     }
     public static void sendAcceptEdit(ServerPlayer player) {
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);

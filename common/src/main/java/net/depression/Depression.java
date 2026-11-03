@@ -46,15 +46,15 @@ public final class Depression {
         VillageAdditions.register();
 
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
-                MentalTraitPacket.MENTAL_TRAIT_PACKET, Registry::receiveMentalTraitPacket);
+                MentalTraitPacket.MENTAL_TRAIT_C2S_PACKET, Registry::receiveMentalTraitPacket);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
-                DiaryUpdatePacket.DIARY_UPDATE_PACKET, Registry::receiveDiaryUpdatePacket);
+                DiaryUpdatePacket.DIARY_UPDATE_C2S_PACKET, Registry::receiveDiaryUpdatePacket);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
                 PlaySoundPacket.PLAY_SOUND_PACKET, PTSDManager::receivePlaySoundPacket);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
                 RhythmCraftPacket.PROFILE_REQUEST_PACKET, RhythmCraftProfile::onReceiveRequest);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
-                RhythmCraftPacket.PROFILE_PACKET, RhythmCraftProfile::onReceiveProfileUpdate);
+                RhythmCraftPacket.PROFILE_C2S_PACKET, RhythmCraftProfile::onReceiveProfileUpdate);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,
                 RhythmCraftPacket.READ_CHART_PACKET, PlayingChart::onReceiveReadChart);
         NetworkManager.registerReceiver(NetworkManager.Side.C2S,

@@ -16,12 +16,14 @@ import java.nio.charset.StandardCharsets;
 
 public class DiaryUpdatePacket {
     public static final ResourceLocation DIARY_UPDATE_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "diary_update_packet");
+    //NeoForge 21.1 的 payload 注册表只按 id 判重、不分方向，同一个 id 不能既 C2S 又 S2C，所以客户端→服务端单独用一个 id
+    public static final ResourceLocation DIARY_UPDATE_C2S_PACKET = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "diary_update_c2s_packet");
     public static Charset charset = StandardCharsets.UTF_8;
 
     public static void sendToServer(String content) {
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
         buf.writeCharSequence(content, charset);
-        NetworkManager.sendToServer(DIARY_UPDATE_PACKET, buf);
+        NetworkManager.sendToServer(DIARY_UPDATE_C2S_PACKET, buf);
     }
 
     public static void sendToPlayer(ServerPlayer player) {
