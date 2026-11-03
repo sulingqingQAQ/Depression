@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.depression.client.DepressionClient;
 import net.depression.client.rhythmcraft.ClientPlayingChart;
 import net.depression.mixin.rhythmcraft.BossHealthOverlayAccessor;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.entity.player.Player;
@@ -11,7 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import javax.swing.text.html.parser.Entity;
 
 public class GameGuiRenderer {
-    public static void renderHud(GuiGraphics guiGraphics, float v) {
+    public static void renderHud(GuiGraphics guiGraphics, DeltaTracker deltaTracker) {
         if (DepressionClient.playingChart != null && DepressionClient.playingChart.isPlaying) {
             ClientPlayingChart playingChart = DepressionClient.playingChart;
             Minecraft minecraft = Minecraft.getInstance();
@@ -48,6 +49,7 @@ public class GameGuiRenderer {
                 poseStack.popPose();
             }
             if (minecraft.screen == null) {
+                float v = deltaTracker.getGameTimeDeltaPartialTick(false);
                 if (playingChart.songProgressSlider != null) {
                     playingChart.songProgressSlider.renderWidget(guiGraphics, 0, 0, v);
                 }

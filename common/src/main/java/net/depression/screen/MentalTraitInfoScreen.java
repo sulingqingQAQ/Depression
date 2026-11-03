@@ -69,7 +69,7 @@ public class MentalTraitInfoScreen extends UncloseableScreen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
-        renderDirtBackground(guiGraphics);
+        renderBackground(guiGraphics, mouseX, mouseY, partialTicks);
         Minecraft minecraft = Minecraft.getInstance();
         Window window = minecraft.getWindow();
         int x = window.getGuiScaledWidth() / 2;

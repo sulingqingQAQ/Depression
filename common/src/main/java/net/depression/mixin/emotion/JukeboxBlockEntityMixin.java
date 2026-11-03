@@ -26,14 +26,14 @@ public abstract class JukeboxBlockEntityMixin {
         if (++tickCount % 20 != 0)
             return;
         JukeboxBlockEntity jukebox = (JukeboxBlockEntity) (Object) this;
-        if (!jukebox.isRecordPlaying()) {
+        if (!jukebox.getSongPlayer().isPlaying()) {
             return;
         }
         ServerLevel serverLevel = (ServerLevel) level;
         for (ServerPlayer player : serverLevel.players()) {
             if (player.position().distanceTo(jukebox.getBlockPos().getCenter()) <= 65) {
                 MentalStatus mentalStatus = MentalStatus.getMentalStatusByServerPlayer(player);
-                mentalStatus.mentalHeal(jukebox.getFirstItem().getItem().arch$registryName().toString(), 1);
+                mentalStatus.mentalHeal(jukebox.getTheItem().getItem().arch$registryName().toString(), 1);
                 MentalStatusPacket.sendToPlayer(player, mentalStatus);
             }
         }

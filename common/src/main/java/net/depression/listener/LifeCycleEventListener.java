@@ -7,6 +7,7 @@ import net.depression.mental.MentalStatus;
 import net.depression.world.VillageAdditions;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
@@ -27,7 +28,19 @@ public class LifeCycleEventListener {
                 }
                 if (item instanceof TieredItem tieredItem) {
                     Tier tier = tieredItem.getTier();
-                    double value = 0.1 * Math.pow(tier.getLevel(), 3);
+                    // 1.21.1: Tiers 已无 getLevel()，穷举回填旧等级（WOOD 0/STONE 1/IRON 2/DIAMOND 3/GOLD 0/NETHERITE 4），非原版 tier 默认 1
+                    int tierLevel = 1;
+                    if (tier instanceof Tiers tiers) {
+                        tierLevel = switch (tiers) {
+                            case WOOD -> 0;
+                            case STONE -> 1;
+                            case IRON -> 2;
+                            case DIAMOND -> 3;
+                            case GOLD -> 0;
+                            case NETHERITE -> 4;
+                        };
+                    }
+                    double value = 0.1 * Math.pow(tierLevel, 3);
                     MentalStatus.lootHealItem.put(id, value);
                     for (ItemStack material : tier.getRepairIngredient().getItems()) {
                         String materialId = material.getItem().arch$registryName().toString();
@@ -37,11 +50,12 @@ public class LifeCycleEventListener {
                     }
                 }
                 if (item instanceof ArmorItem armorItem) {
-                    double value = 0.4 * armorItem.getDefense() + 0.2 * armorItem.getToughness() + 0.1 * armorItem.getMaterial().getKnockbackResistance();
+                    double value = 0.4 * armorItem.getDefense() + 0.2 * armorItem.getToughness() + 0.1 * armorItem.getMaterial().value().knockbackResistance(); // 1.21.1: getMaterial() 返回 Holder<ArmorMaterial>
                     MentalStatus.lootHealItem.put(id, value);
                 }
                 if (item instanceof ProjectileWeaponItem projectileWeaponItem) {
-                    double damage = projectileWeaponItem.getMaxDamage();
+                    Integer maxDamage = projectileWeaponItem.components().get(DataComponents.MAX_DAMAGE); // 1.21.1: getMaxDamage() 已移除，改走组件
+                    double damage = maxDamage == null ? 0 : maxDamage; // 组件缺省 0，与旧 getMaxDamage() 行为一致
                     if (damage > 5) {
                         double value = 0.2 * (damage - 5);
                         MentalStatus.lootHealItem.put(id, value);

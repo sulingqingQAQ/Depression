@@ -548,7 +548,7 @@ public class CommandRegistrationListener {
             Registry.particles.computeIfAbsent(playingChart.player.getStringUUID(), k -> new LinkedList<>()).add(instance);
         }
         else {
-            Registry.particles.computeIfAbsent(level.dimensionTypeId().location().toString(), k -> new LinkedList<>()).add(instance);
+            Registry.particles.computeIfAbsent(level.dimension().location().toString(), k -> new LinkedList<>()).add(instance);
         }
         return 0;
     }

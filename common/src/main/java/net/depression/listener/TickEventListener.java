@@ -21,7 +21,7 @@ public class TickEventListener {
         Registry.loadPendingPlayers();
     }
     public static void onServerLevelTick(ServerLevel serverLevel) {
-        String id = serverLevel instanceof PlayingChart playingChart ? playingChart.player.getStringUUID() : serverLevel.dimensionTypeId().location().toString();
+        String id = serverLevel instanceof PlayingChart playingChart ? playingChart.player.getStringUUID() : serverLevel.dimension().location().toString();
         LinkedList<ParticleFormulaInstance> list = Registry.particles.getOrDefault(id, new LinkedList<>());
         list.removeIf(instance -> !instance.tick());
     }

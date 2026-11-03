@@ -26,7 +26,7 @@ public class ClientRawInputEventListener {
         }
     }
 
-    public static EventResult onMouseScrolled(Minecraft minecraft, double v) {
+    public static EventResult onMouseScrolled(Minecraft minecraft, double scrollX, double scrollY) {
         return onInput(minecraft, null);
     }
 

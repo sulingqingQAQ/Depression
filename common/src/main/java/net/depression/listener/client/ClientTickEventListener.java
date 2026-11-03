@@ -59,7 +59,7 @@ public class ClientTickEventListener {
         ClientPTSDManager ptsdManager = mentalStatus.ptsdManager;
         Player player = Minecraft.getInstance().player;
         long curTick = clientLevel.getGameTime();
-        String dimensionID = Minecraft.getInstance().level.dimensionTypeId().location().toString();
+        String dimensionID = Minecraft.getInstance().level.dimension().location().toString();
         ConcurrentLinkedDeque<Pair<Entity, Long>> falseEntities = ClientPTSDManager.falseEntities.get(dimensionID);
         if (falseEntities != null) {
             falseEntities.removeIf(pair -> curTick - pair.getSecond() > 400);

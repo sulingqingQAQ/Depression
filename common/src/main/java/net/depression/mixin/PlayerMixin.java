@@ -9,6 +9,7 @@ import net.depression.rhythmcraft.PlayingChart;
 import net.depression.rhythmcraft.RhythmCraftProfile;
 import net.depression.server.Registry;
 import net.depression.server.StatManager;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
@@ -82,8 +83,8 @@ public abstract class PlayerMixin {
         mentalStatus.mentalIllness.sleepAttemptCount = 0;
     }
 
-    @Inject(method = "eat", at = @At("HEAD"))
-    private void eat(Level level, ItemStack itemStack, CallbackInfoReturnable<ItemStack> cir) {
+    @Inject(method = "eat(Lnet/minecraft/world/level/Level;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/food/FoodProperties;)Lnet/minecraft/world/item/ItemStack;", at = @At("HEAD"))
+    private void eat(Level level, ItemStack itemStack, FoodProperties injectedFoodProperties, CallbackInfoReturnable<ItemStack> cir) {
         if (level.isClientSide()) {
             return;
         }
@@ -101,11 +102,15 @@ public abstract class PlayerMixin {
             mentalStatus.mentalHeal(id, MentalStatus.foodHealValue.get(id));
         }
         else {
-            FoodProperties foodProperties = item.getFoodProperties();
-            mentalStatus.mentalHeal(id, foodProperties.getNutrition()
-                    * (1 + foodProperties.getSaturationModifier() * 2f) //获得饱食度+饱和度
-                    * foodProperties.getSaturationModifier() //乘以营养等级
-                    * MentalStatus.FOOD_HEAL_RATE); //乘以食物治疗倍率
+            FoodProperties foodProperties = itemStack.get(DataComponents.FOOD);
+            if (foodProperties != null) {
+                // 1.21 的 saturation() 是饱和度本身（= 营养值 * 旧饱和修饰 * 2），这里还原旧的饱和修饰
+                float saturationModifier = foodProperties.nutrition() > 0 ? foodProperties.saturation() / (2f * foodProperties.nutrition()) : 0f;
+                mentalStatus.mentalHeal(id, foodProperties.nutrition()
+                        * (1 + saturationModifier * 2f) //获得饱食度+饱和度
+                        * saturationModifier //乘以营养等级
+                        * MentalStatus.FOOD_HEAL_RATE); //乘以食物治疗倍率
+            }
         }
     }
 

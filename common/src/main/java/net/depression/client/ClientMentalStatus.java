@@ -8,6 +8,7 @@ import net.depression.Depression;
 import net.depression.client.screen.DiaryAccess;
 import net.depression.network.MentalTraitPacket;
 import net.depression.screen.MentalTraitSelectionScreen;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.BookViewScreen;
@@ -79,7 +80,7 @@ public class ClientMentalStatus {
         }
     }
 
-    public void renderHud(GuiGraphics guiGraphics, float v) {
+    public void renderHud(GuiGraphics guiGraphics, DeltaTracker deltaTracker) {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
 

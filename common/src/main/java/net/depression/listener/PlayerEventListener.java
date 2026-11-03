@@ -4,7 +4,7 @@ import dev.architectury.event.EventResult;
 import net.depression.Depression;
 import net.depression.mental.MentalStatus;
 import net.depression.server.Registry;
-import net.minecraft.advancements.Advancement;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerLoginPacketListenerImpl;
 import net.minecraft.world.InteractionHand;
@@ -44,11 +44,11 @@ public class PlayerEventListener {
         return EventResult.pass();
     }
 
-    public static void onPlayerAdvancement(ServerPlayer player, Advancement advancement) {
+    public static void onPlayerAdvancement(ServerPlayer player, AdvancementHolder advancement) {
         if (player.isCreative() || player.isSpectator()) {
             return;
         }
-        String id = advancement.getId().toString();
+        String id = advancement.id().toString();
         if (MentalStatus.healAdvancement.containsKey(id)) {
             MentalStatus mentalStatus = MentalStatus.getMentalStatusByServerPlayer(player);
             mentalStatus.mentalHeal(MentalStatus.healAdvancement.get(id));

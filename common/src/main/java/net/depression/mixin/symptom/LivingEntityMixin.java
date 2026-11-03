@@ -4,6 +4,7 @@ import net.depression.item.MedicineItem;
 import net.depression.rhythmcraft.PlayingChart;
 import net.depression.util.TempValues;
 import net.depression.util.Tools;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
@@ -23,14 +24,14 @@ public abstract class LivingEntityMixin {
       故再写一个Mixin使得ItemStack.getUseDuration()的返回值翻倍
       我知道你想说可以用Shadow，但会调用getUseDuration()的不止LivingEntity一个类（甚至可以说有很多），
       而其它的我懒得找了。所以就用了这么简陋的标记法*/
-    @Inject(method = "startUsingItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;getUseDuration()I"))
+    @Inject(method = "startUsingItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;getUseDuration(Lnet/minecraft/world/entity/LivingEntity;)I"))
     public void startUsingItem(InteractionHand interactionHand, CallbackInfo ci) {
         LivingEntity livingEntity = (LivingEntity) (Object) this;
         if (livingEntity instanceof Player) {
             ItemStack itemStack = livingEntity.getItemInHand(interactionHand);
             TempValues.playerMentalHealthLevel = Tools.getPlayerMentalHealthLevel((Player) livingEntity);
             Item item = itemStack.getItem();
-            if (item.getFoodProperties() != null && !(item instanceof MedicineItem) && TempValues.playerMentalHealthLevel >= 2) { //如果吃的是食物且玩家食欲不振
+            if (itemStack.get(DataComponents.FOOD) != null && !(item instanceof MedicineItem) && TempValues.playerMentalHealthLevel >= 2) { //如果吃的是食物且玩家食欲不振
                 TempValues.isCalledByDepressedPlayer = true;
                 return;
             }

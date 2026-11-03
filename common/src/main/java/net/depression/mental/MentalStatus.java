@@ -6,6 +6,7 @@ import net.depression.network.MentalStatusPacket;
 import net.depression.server.Registry;
 import net.depression.util.Tools;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -17,6 +18,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
@@ -24,7 +26,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
@@ -416,10 +417,10 @@ public class MentalStatus {
                 int zLimit = (int) Math.sqrt(r*r - x*x - y*y);
                 for (int z = -zLimit; z <= zLimit; ++z) { // -sqrt(r*r - x*x - y*y) <= z <= sqrt(r*r - x*x - y*y)
                     BlockPos blockPos = pos.offset(x, y, z);
-                    if (level.getChunk(blockPos).getStatus().isOrAfter(ChunkStatus.FULL)) { //若该区块已加载才进行计算
+                    if (level.getChunk(blockPos).getPersistedStatus().isOrAfter(ChunkStatus.FULL)) { //若该区块已加载才进行计算（1.21.1: getStatus() → getPersistedStatus()）
                         Block block = level.getBlockState(blockPos).getBlock();
                         if (block instanceof FlowerPotBlock) {
-                            block = ((FlowerPotBlock) block).getContent();
+                            block = ((FlowerPotBlock) block).getPotted();
                         }
                         String id = block.arch$registryName().toString();
                         Component name = block.getName();
@@ -618,14 +619,15 @@ public class MentalStatus {
         }
         if (itemStack.isEnchanted()) { //如果钓到的东西有附魔
 
-            for (Map.Entry<Enchantment, Integer> entry : EnchantmentHelper.getEnchantments(itemStack).entrySet()) {
-                Enchantment enchantment = entry.getKey();
-                int level = entry.getValue();
-                if (enchantment.isCurse()) {
-                    enchantmentHealValue -= (double) entry.getValue() / (double) enchantment.getRarity().getWeight() * level;
+            var enchantments = itemStack.getEnchantments();
+            for (Holder<Enchantment> holder : enchantments.keySet()) { // 1.21.1: EnchantmentHelper.getEnchantments(stack) → stack.getEnchantments()
+                int level = enchantments.getLevel(holder);
+                double weight = holder.value().getWeight(); // 1.21.1: isCurse()/getRarity().getWeight() → EnchantmentTags.CURSE / Enchantment.getWeight()
+                if (holder.is(EnchantmentTags.CURSE)) {
+                    enchantmentHealValue -= level / weight * level;
                 }
                 else {
-                    enchantmentHealValue += (double) entry.getValue() / (double) enchantment.getRarity().getWeight() * level;
+                    enchantmentHealValue += level / weight * level;
                 }
             }
             if (enchantmentHealValue > 0) {

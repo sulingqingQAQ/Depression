@@ -45,14 +45,14 @@ public class MentalTraitSelectionScreen extends UncloseableScreen {
         addRenderableWidget(sliderButton);
     }
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        sliderButton.mouseScrolled(delta);
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        sliderButton.mouseScrolled(scrollY);
         return true;
     }
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
         setSlider();
-        renderDirtBackground(guiGraphics);
+        renderBackground(guiGraphics, mouseX, mouseY, partialTicks);
         super.render(guiGraphics, mouseX, mouseY, partialTicks);
         Minecraft minecraft = Minecraft.getInstance();
         Window window = minecraft.getWindow();

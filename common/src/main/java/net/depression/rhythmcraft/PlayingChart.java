@@ -20,6 +20,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.core.RegistryAccess;
@@ -113,7 +114,7 @@ public class PlayingChart extends ServerLevel {
         player.lookAt(EntityAnchorArgument.Anchor.EYES, eyePos.add(direction.getX(), direction.getY(), direction.getZ()));
 
         levelFile = Platform.getGameFolder().resolve("rc_charts/" + chart.song.id + "/" + chart.levelPath + "/level.dat").toFile();
-        CompoundTag playerTag = NbtIo.readCompressed(levelFile).getCompound("Data").getCompound("Player");
+        CompoundTag playerTag = NbtIo.readCompressed(levelFile.toPath(), NbtAccounter.unlimitedHeap()).getCompound("Data").getCompound("Player"); // 1.21.1: NbtIo 改用 Path + NbtAccounter
         ListTag inventoryTag = playerTag.getList("Inventory", 10);
         player.getInventory().load(inventoryTag);
 
@@ -264,9 +265,9 @@ public class PlayingChart extends ServerLevel {
             super.save(progressListener, bl, bl2);
             chart.save();
             try {
-                CompoundTag levelTag = NbtIo.readCompressed(levelFile);
+                CompoundTag levelTag = NbtIo.readCompressed(levelFile.toPath(), NbtAccounter.unlimitedHeap());
                 levelTag.getCompound("Data").put("Player", player.saveWithoutId(new CompoundTag()));
-                NbtIo.writeCompressed(levelTag, levelFile);
+                NbtIo.writeCompressed(levelTag, levelFile.toPath());
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

@@ -177,7 +177,7 @@ public class ClientPTSDManager {
                 mob.getLookControl().setLookAt(player, 0f, 0f);
                 mob.getMoveControl().setWantedPosition(player.getX(), player.getY(), player.getZ(), 0d);
             }
-            falseEntities.computeIfAbsent(level.dimensionTypeId().location().toString(), key -> new ConcurrentLinkedDeque<>())
+            falseEntities.computeIfAbsent(level.dimension().location().toString(), key -> new ConcurrentLinkedDeque<>())
                     .add(new Pair<>(entity, level.getGameTime()));
         });
     }
