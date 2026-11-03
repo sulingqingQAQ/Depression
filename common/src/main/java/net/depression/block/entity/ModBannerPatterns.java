@@ -1,19 +1,20 @@
 package net.depression.block.entity;
 
-import dev.architectury.registry.registries.DeferredRegister;
-import dev.architectury.registry.registries.RegistrySupplier;
 import net.depression.Depression;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.entity.BannerPattern;
 
+/**
+ * 1.21.1 起旗帜图案是纯数据包注册表（data/depression/banner_pattern/*.json），
+ * 启动时 Registry.REGISTRY 里根本没有 minecraft:banner_pattern，
+ * 用 DeferredRegister/Registry.register 会直接炸（"Registry ... does not exist!"）。
+ * 这里只保留图案 ID 常量，实际注册走 JSON。
+ */
 public class ModBannerPatterns {
 
-    public static final DeferredRegister<BannerPattern> BANNER_PATTERNS = DeferredRegister.create(Depression.MOD_ID, Registries.BANNER_PATTERN);
-    public static final RegistrySupplier<BannerPattern> RIBBON = BANNER_PATTERNS.register("ribbon", () -> new BannerPattern(ResourceLocation.fromNamespaceAndPath("depression", "ribbon"), "block.minecraft.banner.depression.ribbon"));
+    public static final ResourceLocation RIBBON_ID = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "ribbon");
 
     public static void register() {
-        BANNER_PATTERNS.register();
+        // no-op：见 data/depression/banner_pattern/ribbon.json
     }
 
 }
