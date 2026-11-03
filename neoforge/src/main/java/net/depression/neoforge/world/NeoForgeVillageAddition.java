@@ -12,6 +12,7 @@ import net.minecraft.world.entity.ai.village.poi.PoiType;
 import net.minecraft.world.entity.npc.VillagerTrades;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -29,29 +30,29 @@ public class NeoForgeVillageAddition {
         if (event.getType() == VillageAdditions.PSYCHOLOGIST.get()) {
             List<VillagerTrades.ItemListing> level1Trades = event.getTrades().get(1);
             level1Trades.add((entity, randomSource) -> new MerchantOffer(
-                    new ItemStack(Items.EMERALD ,30),
+                    new ItemCost(Items.EMERALD,30),
                     new ItemStack(ModItems.MENTAL_HEALTH_SCALE.get(), 1),
                     64,5,0f));
             level1Trades.add((entity, randomSource) -> new MerchantOffer(
-                    new ItemStack(Items.EMERALD ,20),
+                    new ItemCost(Items.EMERALD,20),
                     new ItemStack(ModItems.MILD_DEPRESSION_TABLET.get(), 6),
                     64,5,0f));
             List<VillagerTrades.ItemListing> level2Trades = event.getTrades().get(2);
             level2Trades.add((entity, randomSource) -> new MerchantOffer(
-                    new ItemStack(Items.EMERALD ,30),
+                    new ItemCost(Items.EMERALD,30),
                     new ItemStack(ModItems.INSOMNIA_TABLET.get(), 6),
                     64,20,0f));
             level2Trades.add((entity, randomSource) -> new MerchantOffer(
-                    new ItemStack(Items.EMERALD ,30),
+                    new ItemCost(Items.EMERALD,30),
                     new ItemStack(ModItems.MODERATE_DEPRESSION_TABLET.get(), 6),
                     64,20,0f));
             List<VillagerTrades.ItemListing> level3Trades = event.getTrades().get(3);
             level3Trades.add((entity, randomSource) -> new MerchantOffer(
-                    new ItemStack(Items.EMERALD ,40),
+                    new ItemCost(Items.EMERALD,40),
                     new ItemStack(ModItems.MDD_CAPSULE.get(), 6),
                     64,40,0f));
             level3Trades.add((entity, randomSource) -> new MerchantOffer(
-                    new ItemStack(Items.EMERALD ,40),
+                    new ItemCost(Items.EMERALD,40),
                     new ItemStack(ModItems.MANIA_TABLET.get(), 6),
                     64,40,0f));
         }
