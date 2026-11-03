@@ -37,7 +37,7 @@ public class ClientConfig {
             config.set("emotion_display_offset.y", -51);
         }
         if (!config.contains("enable_computer")) {
-            config.set("enable_computer", true);
+            config.set("enable_computer", false);
         }
         if (!config.contains("rc_highlight_distance")) {
             config.set("rc_highlight_distance", 32);
