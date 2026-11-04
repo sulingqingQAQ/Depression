@@ -45,6 +45,7 @@ public class ClientDiaryUpdater {
         player = null;
         interactionHand = null;
         curDiaryItem = null;
+        writeStack = null;
         writeStartedAtNanos = 0L;
     }
 
