@@ -63,7 +63,7 @@ public class DiaryItem extends WrittenBookItem {
                     Registry.diaryUpdate((ServerPlayer) player, itemStack);
                 }
                 else {
-                    ClientDiaryUpdater.setInfo(this, level, player, interactionHand);
+                    ClientDiaryUpdater.setInfo(this, level, player, interactionHand, itemStack);
                 }
             }
             else { //如果还没到晚上，则发送提示
@@ -79,7 +79,7 @@ public class DiaryItem extends WrittenBookItem {
                     Registry.diaryUpdate((ServerPlayer) player, itemStack);
                 }
                 else {
-                    ClientDiaryUpdater.setInfo(this, level, player, interactionHand);
+                    ClientDiaryUpdater.setInfo(this, level, player, interactionHand, itemStack);
                 }
             }
             else { //如果还没到晚上，则打开日记

@@ -33,6 +33,9 @@ public class ClientDiaryUpdater {
     public static Player player;
     public static InteractionHand interactionHand;
     public static ItemStack curDiaryItem;
+    public static ItemStack writeStack;
+    private static final long WRITE_TIMEOUT_NANOS = 5_000_000_000L;
+    private static long writeStartedAtNanos;
     public static Random random = new Random();
     public static final ResourceLocation writeSound = ResourceLocation.parse("assets/diary_sound/write_diary");
 
@@ -41,17 +44,26 @@ public class ClientDiaryUpdater {
         level = null;
         player = null;
         interactionHand = null;
+        curDiaryItem = null;
+        writeStartedAtNanos = 0L;
     }
 
-    public static void setInfo(DiaryItem diaryItem, Level level, Player player, InteractionHand interactionHand) {
+    public static void setInfo(DiaryItem diaryItem, Level level, Player player, InteractionHand interactionHand, ItemStack diaryStack) {
+        long now = System.nanoTime();
+        //A single diary write may have only one in-flight server response; ignore repeated use events.
+        if (ClientDiaryUpdater.diaryItem != null && now - writeStartedAtNanos < WRITE_TIMEOUT_NANOS) {
+            return;
+        }
         ClientDiaryUpdater.diaryItem = diaryItem;
         ClientDiaryUpdater.level = level;
         ClientDiaryUpdater.player = player;
         ClientDiaryUpdater.interactionHand = interactionHand;
+        ClientDiaryUpdater.writeStack = diaryStack; //快照右键时的日记栈引用，收包时校验手中是否仍是同一栈
+        writeStartedAtNanos = now;
     }
 
     public static void receiveDiaryUpdatePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
-        if (Minecraft.getInstance().level == null) {
+        if (ClientDiaryUpdater.diaryItem == null || Minecraft.getInstance().level == null) {
             return;
         }
         player = Minecraft.getInstance().player;
@@ -108,7 +120,14 @@ public class ClientDiaryUpdater {
         }
         boolean isLatin = Component.translatable("diary.depression.is_latin").getString().equals("true");
 
-        ItemStack itemStack = player.getItemInHand(interactionHand);
+        //收包校验：手中必须仍是 setInfo 时快照的同一 ItemStack（引用一致），否则丢弃本次收包（不写、不合并、不回发）
+        if (interactionHand == null || writeStack == null) { //clear 后的迟到包：快照已清，丢弃
+            return;
+        }
+        if (player.getItemInHand(interactionHand) != writeStack) { //切手/切格/换成另一本后收包：手已不是右键那本，丢弃，防止把当晚内容写错物品
+            return;
+        }
+        ItemStack itemStack = writeStack;
         java.util.List<Filterable<Component>> newPages = new java.util.ArrayList<>();
         StringBuilder pageBuilder = new StringBuilder();
         StringBuilder sentToServerContent = new StringBuilder();
@@ -166,5 +185,7 @@ public class ClientDiaryUpdater {
         curDiaryItem = itemStack;
         //向服务器发送更新
         DiaryUpdatePacket.sendToServer(sentToServerContent.toString());
+        ClientDiaryUpdater.diaryItem = null;
+        writeStartedAtNanos = 0L;
     }
 }

@@ -48,6 +48,15 @@ public abstract class BookViewScreenMixin extends Screen {
         super(component);
     }
 
+    // 1.21.1: 原版书皮改在 renderBackground 里画，且 Screen.render 会再次调用它。
+    // 不拦的话：咱们画完羊皮纸 → super.render 把棕皮盖回来 → ci.cancel 又杀掉字和页码 = 棕皮空书。
+    @Inject(method = "renderBackground", at = @At("HEAD"), cancellable = true)
+    private void depression$cancelVanillaBookBackground(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
+        if (DiaryAccess.isDiary(bookAccess)) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
     private void render(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
         if (!DiaryAccess.isDiary(bookAccess)) {

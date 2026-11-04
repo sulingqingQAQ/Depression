@@ -118,8 +118,16 @@ public class Registry {
         diaryUpdateMap.put(player.getUUID(), diary);
         DiaryUpdatePacket.sendToPlayer(player);
     }
+    public static void removeDiaryUpdate(UUID uuid) { //M4: 退服时清除挂起的日记更新条目, 防止陈旧 ItemStack 引用滞留并在重进后误用
+        diaryUpdateMap.remove(uuid);
+    }
     public static void receiveDiaryUpdatePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ItemStack diary = diaryUpdateMap.get(packetContext.getPlayer().getUUID());
+        if (diary == null) {
+            //Duplicate/late/forged packet: the pending entry was already consumed by an earlier packet (removed at the end of this method)
+            net.depression.Depression.LOGGER.warn("Received diary update packet from " + packetContext.getPlayer().getName().getString() + " but no pending diary item exists, ignoring");
+            return;
+        }
         CharSequence rawContent = buf.readCharSequence(buf.readableBytes(), DiaryUpdatePacket.charset);
         java.util.List<Filterable<Component>> pages = new java.util.ArrayList<>();
         StringBuilder pageContent = new StringBuilder();

@@ -84,9 +84,11 @@ public class ClientMentalStatus {
         Minecraft minecraft = Minecraft.getInstance();
         Player player = minecraft.player;
 
-        if (ClientDiaryUpdater.curDiaryItem != null) { //打开日记
-            minecraft.setScreen(new BookViewScreen(DiaryAccess.fromStack(ClientDiaryUpdater.curDiaryItem)));
-            ClientDiaryUpdater.curDiaryItem = null;
+        if (ClientDiaryUpdater.curDiaryItem != null) { //打开日记：仅当玩家存活且无任何界面（screen==null，纯HUD）时弹出，否则保留排队，避免顶掉暂停/聊天/死亡屏
+            if (player != null && player.isAlive() && minecraft.screen == null) {
+                minecraft.setScreen(new BookViewScreen(DiaryAccess.fromStack(ClientDiaryUpdater.curDiaryItem)));
+                ClientDiaryUpdater.curDiaryItem = null;
+            }
         }
 
         if (player.isCreative() || player.isSpectator()) {

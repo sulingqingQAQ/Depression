@@ -22,6 +22,9 @@ public class ClientLifecycleEventListener {
             clientActionbarHint.clear();
             ClientDiaryUpdater.clear();
         }
+        // 死亡/重生与维度切换都会触发 CLIENT_LEVEL_LOAD（重建 ClientLevel），
+        // 无论是否换档都清掉日记待开屏状态，避免旧书在新场景弹出
+        ClientDiaryUpdater.clear();
     }
 
     public static void onClientStopping(Minecraft minecraft) {
