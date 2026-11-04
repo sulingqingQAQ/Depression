@@ -1,5 +1,6 @@
 package net.depression.mental;
 
+import net.depression.effect.EffectHolders;
 import net.depression.effect.ModEffects;
 import net.depression.network.ActionbarHintPacket;
 import net.depression.network.MentalStatusPacket;
@@ -219,7 +220,7 @@ public class MentalStatus {
             if (!mentalIllness.isMania) { //躁狂期间精神健康值不随情绪改变
                 if (emotionValue < 0) {
                     if (mentalIllness.mentalHealthId == 4) {
-                        if (player.hasEffect(ModEffects.ANTI_DEPRESSION) && player.hasEffect(ModEffects.ANTI_MANIA) && player.getEffect(ModEffects.ANTI_MANIA).getAmplifier() >= 2) {
+                        if (player.hasEffect(EffectHolders.resolve(ModEffects.ANTI_DEPRESSION)) && player.hasEffect(EffectHolders.resolve(ModEffects.ANTI_MANIA)) && player.getEffect(EffectHolders.resolve(ModEffects.ANTI_MANIA)).getAmplifier() >= 2) {
                             mentalHealthValue += emotionValue * MENTAL_HEALTH_CHANGE_RATE * mentalTrait.mentalHurtMultiplier / 4;
                         }
                     }

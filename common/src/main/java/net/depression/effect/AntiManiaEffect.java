@@ -1,5 +1,6 @@
 package net.depression.effect;
 
+import net.depression.effect.EffectHolders;
 import net.depression.mental.MentalStatus;
 import net.depression.server.Registry;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,8 +26,8 @@ public class AntiManiaEffect extends MobEffect {
                 return true;
             }
             int mentalHealthId = mentalStatus.mentalIllness.mentalHealthId;
-            if (mentalHealthId == 4 && player.hasEffect(ModEffects.ANTI_DEPRESSION)) {
-                if (player.getEffect(ModEffects.ANTI_DEPRESSION).getAmplifier() >= 2) {
+            if (mentalHealthId == 4 && player.hasEffect(EffectHolders.resolve(ModEffects.ANTI_DEPRESSION))) {
+                if (player.getEffect(EffectHolders.resolve(ModEffects.ANTI_DEPRESSION)).getAmplifier() >= 2) {
                     mentalStatus.mentalHealthValue += (amplifier + 1) * 0.05 * mentalStatus.mentalTrait.medicineEffectMultiplier;
                 }
             }

@@ -1,5 +1,6 @@
 package net.depression.mental;
 
+import net.depression.effect.EffectHolders;
 import net.depression.effect.ModEffects;
 import net.depression.item.MedicineItem;
 import net.depression.network.ActionbarHintPacket;
@@ -61,7 +62,10 @@ public class MentalIllness {
             if (delay > 0) {
                 medicineDelay.put(key, delay - 1);
             } else {
-                player.addEffect(MedicineItem.effectMap.get(key));
+                MobEffectInstance template = MedicineItem.effectMap.get(key);
+                player.addEffect(new MobEffectInstance(EffectHolders.resolve(template.getEffect()),
+                        template.getDuration(), template.getAmplifier(),
+                        template.isAmbient(), template.isVisible(), template.showIcon()));
                 medicineDelay.remove(key);
             }
         }
@@ -106,7 +110,7 @@ public class MentalIllness {
             }
         }
 
-        boolean isSleepy = player.hasEffect(ModEffects.SLEEPINESS);
+        boolean isSleepy = player.hasEffect(EffectHolders.resolve(ModEffects.SLEEPINESS));
         //处理是否失眠
         if (player.isSleepingLongEnough() && !isSleepy) {
             if (isInsomnia && random.nextDouble() < getInsomniaChance()) { //失眠概率随睡眠次数递减
@@ -150,7 +154,7 @@ public class MentalIllness {
     public void trigMentalFatigue() {
         if (mentalHealthId > 0) {
             double chance = getMentalFatigueChance() * mentalStatus.mentalTrait.fatigueChanceMultiplier;
-            MobEffectInstance antiDepression = player.getEffect(ModEffects.ANTI_DEPRESSION);
+            MobEffectInstance antiDepression = player.getEffect(EffectHolders.resolve(ModEffects.ANTI_DEPRESSION));
             if (antiDepression != null) {
                 chance += (antiDepression.getAmplifier() + 1) * 0.02;
             }

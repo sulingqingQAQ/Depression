@@ -34,11 +34,11 @@ public abstract class MilkBucketItemMixin {
                 }
             }
             else {
-                MobEffectInstance antiDepression = livingEntity.getEffect(ModEffects.ANTI_DEPRESSION);
+                MobEffectInstance antiDepression = livingEntity.getEffect(net.depression.effect.EffectHolders.resolve(ModEffects.ANTI_DEPRESSION));
                 if (antiDepression != null) {
                     savedEffectInstances.add(antiDepression);
                 }
-                MobEffectInstance antiMania = livingEntity.getEffect(ModEffects.ANTI_MANIA);
+                MobEffectInstance antiMania = livingEntity.getEffect(net.depression.effect.EffectHolders.resolve(ModEffects.ANTI_MANIA));
                 if (antiMania != null) {
                     savedEffectInstances.add(antiMania);
                 }

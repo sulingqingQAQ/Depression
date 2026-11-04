@@ -1,5 +1,6 @@
 package net.depression.item;
 
+import net.depression.effect.EffectHolders;
 import net.depression.mental.MentalIllness;
 import net.depression.mental.MentalStatus;
 import net.depression.network.ActionbarHintPacket;
@@ -100,7 +101,7 @@ public class MedicineItem extends Item {
     @Override
     public @NotNull ItemStack finishUsingItem(ItemStack itemStack, Level level, LivingEntity livingEntity) {
         if (livingEntity instanceof ServerPlayer player) {
-            MobEffectInstance effectInstance = player.getEffect(effect);
+            MobEffectInstance effectInstance = player.getEffect(EffectHolders.resolve(effect));
             MentalIllness mentalIllness = MentalStatus.getMentalStatusByServerPlayer(player).mentalIllness;
             if ((effectInstance != null && !effectInstance.endsWithin(duration/2))
                     || mentalIllness.medicineDelay.containsKey(id)) { //如果私自加量服药（效果剩余时间大于持续时间的一半）
@@ -134,7 +135,7 @@ public class MedicineItem extends Item {
                 if (minDelay > 0) {
                     mentalIllness.medicineDelay.put(id, random.nextInt(maxDelay - minDelay) + minDelay);
                 } else {
-                    player.addEffect(new MobEffectInstance(effect, duration, amplifier, false, false, true));
+                    player.addEffect(new MobEffectInstance(EffectHolders.resolve(effect), duration, amplifier, false, false, true));
                 }
             }
             ActionbarHintPacket.sendOverdosePacket(player, mentalIllness.odCount);
