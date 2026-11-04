@@ -3,6 +3,7 @@ package net.depression.client;
 
 import dev.architectury.networking.NetworkManager;
 import net.depression.item.DiaryItem;
+import net.depression.item.ModItems;
 import net.depression.mixin.client.FontAccess;
 import net.depression.network.DiaryUpdatePacket;
 import net.depression.util.Tools;
@@ -18,6 +19,7 @@ import net.minecraft.server.network.Filterable;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.WrittenBookContent;
@@ -34,6 +36,7 @@ public class ClientDiaryUpdater {
     public static InteractionHand interactionHand;
     public static ItemStack curDiaryItem;
     public static ItemStack writeStack;
+    public static int writeSlot;
     private static final long WRITE_TIMEOUT_NANOS = 5_000_000_000L;
     private static long writeStartedAtNanos;
     public static Random random = new Random();
@@ -59,7 +62,8 @@ public class ClientDiaryUpdater {
         ClientDiaryUpdater.level = level;
         ClientDiaryUpdater.player = player;
         ClientDiaryUpdater.interactionHand = interactionHand;
-        ClientDiaryUpdater.writeStack = diaryStack; //快照右键时的日记栈引用，收包时校验手中是否仍是同一栈
+        ClientDiaryUpdater.writeStack = diaryStack; //快照右键时的日记栈：引用作收包快速路径，item 类型作校验参照
+        ClientDiaryUpdater.writeSlot = interactionHand == InteractionHand.MAIN_HAND ? player.getInventory().selected : Inventory.SLOT_OFFHAND; //主手记选定槽位（防切格）；副手记固定槽位40（手即槽位）
         writeStartedAtNanos = now;
     }
 
@@ -121,14 +125,19 @@ public class ClientDiaryUpdater {
         }
         boolean isLatin = Component.translatable("diary.depression.is_latin").getString().equals("true");
 
-        //收包校验：手中必须仍是 setInfo 时快照的同一 ItemStack（引用一致），否则丢弃本次收包（不写、不合并、不回发）
-        if (interactionHand == null || writeStack == null) { //clear 后的迟到包：快照已清，丢弃
+        //收包校验：引用一致直接放行；引用不同（常见为服务端 SetSlot 重同步重建实例）降级走槽位+类型校验，不符才丢弃（不写、不合并、不回发）
+        if (interactionHand == null || writeStack == null) { //clear 后的迟到包：快照已清，丢弃（interactionHand 即 setInfo 时的手，非空即手对得上）
             return;
         }
-        if (player.getItemInHand(interactionHand) != writeStack) { //切手/切格/换成另一本后收包：手已不是右键那本，丢弃，防止把当晚内容写错物品
-            return;
+        ItemStack itemStack = player.getItemInHand(interactionHand);
+        if (itemStack != writeStack) { //引用不等：不单独据此丢弃（防 SetSlot 换实例误杀合法包），降级校验
+            if (interactionHand == InteractionHand.MAIN_HAND && player.getInventory().selected != writeSlot) { //主手切格：选定槽已不是右键时快照槽（副手手即槽位，无需此判）
+                return;
+            }
+            if (!itemStack.is(ModItems.DIARY.get())) { //该手当前栈已不是日记物品（切手/换成其他物品）
+                return;
+            }
         }
-        ItemStack itemStack = writeStack;
         java.util.List<Filterable<Component>> newPages = new java.util.ArrayList<>();
         StringBuilder pageBuilder = new StringBuilder();
         StringBuilder sentToServerContent = new StringBuilder();
