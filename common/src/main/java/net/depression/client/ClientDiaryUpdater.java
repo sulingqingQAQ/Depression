@@ -52,6 +52,17 @@ public class ClientDiaryUpdater {
         writeStartedAtNanos = 0L;
     }
 
+    /**
+     * 死亡重生专用：只保留排队中的日记弹屏（curDiaryItem），其余收包/写入快照照常清空。
+     * 不能整体跳过 clear()——diaryItem/level/player/interactionHand/writeStack/writeSlot 描述的是"这一次右键写日记"的会话，
+     * 重生后旧的世界引用与手/槽位快照都已失效，留着会让迟到的 DiaryUpdatePacket 用旧快照做校验、甚至写进已不在手里的书。
+     */
+    public static void clearKeepingQueuedDiary() {
+        ItemStack queuedDiaryItem = curDiaryItem;
+        clear();
+        curDiaryItem = queuedDiaryItem;
+    }
+
     public static void setInfo(DiaryItem diaryItem, Level level, Player player, InteractionHand interactionHand, ItemStack diaryStack) {
         long now = System.nanoTime();
         //A single diary write may have only one in-flight server response; ignore repeated use events.

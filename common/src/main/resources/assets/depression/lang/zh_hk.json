@@ -178,6 +178,8 @@
   "message.depression.damagesource.fallingBlock": "下落的方塊",
   "message.depression.damagesource.flyIntoWall": "飛撞向牆",
   "message.depression.damagesource.explosion": "爆炸",
+  "message.depression.damagesource.explosion.player": "爆炸（玩家）",
+  "message.depression.damagesource.mob": "生物",
   "message.depression.damagesource.generic": "其他原因",
   "message.depression.damagesource.genericKill": "/kill 指令",
   "message.depression.damagesource.badRespawnPoint": "[刻意的遊戲設計]",

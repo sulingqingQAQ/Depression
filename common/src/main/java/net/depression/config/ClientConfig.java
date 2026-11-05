@@ -42,10 +42,16 @@ public class ClientConfig {
         if (!config.contains("rc_highlight_distance")) {
             config.set("rc_highlight_distance", 32);
         }
+        //是否在死亡重生后补弹排队中的日记屏（默认 false：维持原行为，死亡/重生时丢弃待开屏）
+        //true 时死亡重生只清收包快照，保留 ClientDiaryUpdater.curDiaryItem 队列，重生后由 renderHud 自然弹出
+        if (!config.contains("keep_diary_screen_on_respawn")) {
+            config.set("keep_diary_screen_on_respawn", false);
+        }
 
         ClientMentalStatus.EMOTION_DISPLAY_OFFSET_X = config.get("emotion_display_offset.x");
         ClientMentalStatus.EMOTION_DISPLAY_OFFSET_Y = config.get("emotion_display_offset.y");
         DepressionClient.ENABLE_COMPUTER = config.get("enable_computer");
+        DepressionClient.KEEP_DIARY_SCREEN_ON_RESPAWN = config.get("keep_diary_screen_on_respawn");
 
         config.save();
         config.close();

@@ -263,7 +263,7 @@ public class ClientActionbarHint {
             default -> "";
         };
         gui.setOverlayMessage(Component.translatable(insomniaHint
-                + illness + "_" + random.nextInt(3) + 1), false);
+                + illness + "_" + (random.nextInt(3) + 1)), false);
     }
 
     public void receiveMentalFatiguePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {

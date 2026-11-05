@@ -22,6 +22,7 @@ import java.util.ArrayList;
 
 public class DepressionClient {
     public static boolean ENABLE_COMPUTER;
+    public static boolean KEEP_DIARY_SCREEN_ON_RESPAWN; //client-config: keep_diary_screen_on_respawn，默认 false
     public static final ClientMentalStatus clientMentalStatus = new ClientMentalStatus();
     public static final ClientActionbarHint clientActionbarHint = new ClientActionbarHint();
     public static RhythmCraftProfile rcProfile = new RhythmCraftProfile();
@@ -97,6 +98,7 @@ public class DepressionClient {
         ClientGuiEvent.RENDER_HUD.register(clientMentalStatus::renderHud);
         ClientGuiEvent.RENDER_HUD.register(GameGuiRenderer::renderHud);
         ClientLifecycleEvent.CLIENT_LEVEL_LOAD.register(ClientLifecycleEventListener::onClientLevelLoad);
+        ClientPlayerEvent.CLIENT_PLAYER_RESPAWN.register(ClientLifecycleEventListener::onClientPlayerRespawn);
         ClientLifecycleEvent.CLIENT_STOPPING.register(ClientLifecycleEventListener::onClientStopping);
         ClientRawInputEvent.MOUSE_SCROLLED.register(ClientRawInputEventListener::onMouseScrolled);
         ClientRawInputEvent.MOUSE_CLICKED_PRE.register(ClientRawInputEventListener::onMouseClicked);

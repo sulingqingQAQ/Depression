@@ -110,7 +110,8 @@ public class GameEndScreen extends UncloseableScreen {
         guiGraphics.blit(TEXT_YOUR_SCORE, scoreX, 20, 1, 0, 14 * chart.difficulty, 84, 14, 84, 84);
         RCDrawer.drawSettlementSmallNumber(guiGraphics, scoreX + 19, 27, 2, chart.level, chart.difficulty);
         RCDrawer.drawSettlementLargeNumber(guiGraphics, scoreX, 38, 2, playingChart.score.get(), chart.difficulty);
-        guiGraphics.blit(RCDrawer.RANKINGS_WITH_TEXT, scoreX + 82, 28, 2, 0, 25 * RhythmCraftProfile.getRankNumber(score), 19, 25, 38, 200); //19*25
+        int rankNumber = RhythmCraftProfile.getRankNumber(score);
+        guiGraphics.blit(RCDrawer.RANKINGS, scoreX + 82, 28, 2, 0, 19 * rankNumber, 19, 19, 38, 152);
         //绘制最高分
         int statX = (int) Math.max(120, 240 - (timeElapsed - 1000) * 0.24d);
         if (score > prevScore) {

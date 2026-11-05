@@ -9,7 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 public class RCDrawer {
     public static final ResourceLocation RC_FONT_SMALL = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/font_3_5.png");
     public static final ResourceLocation RANKINGS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/rankings.png");
-    public static final ResourceLocation RANKINGS_WITH_TEXT = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/rankings_with_text.png");
+    // 结算屏直接使用 rankings.png 帧内字母，不再引用缺失的 rankings_with_text.png。
     private static final ResourceLocation SMALL_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/small_numbers.png");
     private static final ResourceLocation REGULAR_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/regular_numbers.png");
     private static final ResourceLocation SETTLEMENT_SMALL_NUMBERS = ResourceLocation.fromNamespaceAndPath(Depression.MOD_ID, "textures/rc_screen/settlement_small_numbers.png");
