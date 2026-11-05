@@ -47,6 +47,8 @@ public class ClientPlayingChart {
     public Song song;
     public Comparator<? super BlockPos> comparator;
     public boolean isPlaying;
+    /** C：谱面是否已结束（收到服务端 GAME_END），客户端据此停止幻影音符渲染并丢弃谱面对象 */
+    public boolean isEnded;
     public AtomicInteger score;
     public AtomicInteger combo;
     public BlockPos frontBlockPos;
@@ -205,7 +207,11 @@ public class ClientPlayingChart {
     }
     public static void receiveGameEndPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
+        if (playingChart == null) {
+            return;
+        }
         playingChart.isPlaying = false;
+        playingChart.isEnded = true; //C：与服务端结束同步，客户端 tick 看到后丢弃谱面对象
         int score = buf.readInt();
         int hits = buf.readInt();
         int prevScore = buf.readInt();

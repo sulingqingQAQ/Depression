@@ -1,5 +1,6 @@
 package net.depression.mental;
 
+import net.depression.Depression;
 import net.depression.effect.EffectHolders;
 import net.depression.effect.ModEffects;
 import net.depression.network.ActionbarHintPacket;
@@ -31,13 +32,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.FlowerPotBlock;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MentalStatus {
     public static double EMOTION_STABILIZE_RATE;
@@ -72,7 +74,17 @@ public class MentalStatus {
     public MentalIllness mentalIllness;
     private ServerPlayer player;
     public long tickCount = -1;
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private int ptsdScanCursor;
+    //光环扫描统一交给一条共享的后台线程执行：原来每个玩家各 new 一个 CachedThreadPool 且从不关停，线程数随玩家累积
+    private static final ExecutorService HEAL_BLOCK_SCAN_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "depression-heal-block-scan");
+        thread.setDaemon(true);
+        return thread;
+    });
+    //上一次提交的扫描还没结束时跳过本次提交，避免任务在队列里堆积
+    private final AtomicBoolean healBlockScanPending = new AtomicBoolean(false);
+    //主线程抓取、后台线程只读的扫描快照（含已加载区块引用）
+    private volatile HealBlockScanSnapshot healBlockScanSnapshot;
     private AttributeModifier speedModifier;
 
     private AttributeModifier attributeModifier;
@@ -154,8 +166,10 @@ public class MentalStatus {
             }
         }
         if (tickCount % 20L == 0L) {
-            //方块光环检测
-            executor.submit(this::detectNearbyHealBlock);
+            //方块光环检测：主线程先抓"已加载区块"快照，扫描本身提交给全局共享的单线程池。
+            //原来每个玩家各建一个 CachedThreadPool、永不关停，而且跨线程调用 getChunk 还会阻塞主线程
+            this.healBlockScanSnapshot = snapshotHealBlockScan();
+            HEAL_BLOCK_SCAN_EXECUTOR.submit(this::runHealBlockScan);
             //睡眠检测
             ServerLevel level = player.serverLevel();
             if (mentalIllness.isInsomnia != null && level.getDayTime() % 24000 < 12010) {
@@ -169,7 +183,8 @@ public class MentalStatus {
                     mentalHeal("sleeping", 1d);
                 }
             }
-            //PTSD的自然消散
+            //PTSD的自然消散；实体扫描每秒轮转处理最多2条，数值衰减仍逐条执行
+            List<String> ptsdScanKeys = selectPTSDScanKeys();
             for (Map.Entry<String, Double> entry : PTSD.entrySet()) {
                 String key = entry.getKey();
                 double value;
@@ -182,9 +197,11 @@ public class MentalStatus {
                     entry.setValue(value);
                     EntityType.byString(key).ifPresentOrElse(
                             entityType -> {
-                                List<? extends Entity> list = level.getEntities(entityType, this::viewDetect);
-                                for (Entity entity : list) {
-                                    ptsdManager.trigger(entity);
+                                if (ptsdScanKeys.contains(key)) {
+                                    List<? extends Entity> list = level.getEntities(entityType, player.getBoundingBox().inflate(24), this::viewDetect);
+                                    for (Entity entity : list) {
+                                        ptsdManager.trigger(entity);
+                                    }
                                 }
                                 if (value > PTSDManager.PTSD_4_VALUE) {
                                     ptsdManager.photismId.add(key);
@@ -193,6 +210,9 @@ public class MentalStatus {
                                     ptsdManager.photismId.remove(key);
                                 }
                             }, () -> {
+                                if (!ptsdScanKeys.contains(key)) {
+                                    return;
+                                }
                                 for (ServerPlayer serverPlayer : level.players()) {
                                     String name = serverPlayer.getDisplayName().getString();
                                     if (name.equals(key)) {
@@ -305,10 +325,38 @@ public class MentalStatus {
         }
     }
 
+    private List<String> selectPTSDScanKeys() {
+        List<String> keys = new ArrayList<>();
+        for (Map.Entry<String, Double> entry : PTSD.entrySet()) {
+            if (entry.getValue() > PTSDManager.PTSD_1_VALUE) {
+                keys.add(entry.getKey());
+            }
+        }
+        int size = keys.size();
+        if (size <= 2) {
+            ptsdScanCursor = 0;
+            return keys;
+        }
+        int start = Math.floorMod(ptsdScanCursor, size);
+        List<String> selected = new ArrayList<>(2);
+        for (int i = 0; i < 2; ++i) {
+            selected.add(keys.get((start + i) % size));
+        }
+        ptsdScanCursor = (start + 2) % size;
+        return selected;
+    }
+
     public synchronized boolean viewDetect(Entity entity) {
+        double x = entity.getX() - player.getX();
+        double y = entity.getEyeY() - player.getEyeY();
+        double z = entity.getZ() - player.getZ();
+        double distanceSqr = x * x + y * y + z * z;
+        if (distanceSqr > 24d * 24d) {
+            return false;
+        }
         Vec3 vec3 = player.getViewVector(1.0F).normalize();
-        Vec3 vec32 = new Vec3(entity.getX() - player.getX(), entity.getEyeY() - player.getEyeY(), entity.getZ() - player.getZ());
-        double d = vec32.length();
+        Vec3 vec32 = new Vec3(x, y, z);
+        double d = Math.sqrt(distanceSqr);
         vec32 = vec32.normalize();
         double e = vec3.dot(vec32);
         return e > 1.0 - 0.5 / d ? player.hasLineOfSight(entity) : false;
@@ -403,46 +451,133 @@ public class MentalStatus {
     }
 
 
-    public void detectNearbyHealBlock() { //检测周围球形半径的治疗光环方块
-        BlockPos pos = player.blockPosition();
-        Level level = player.level();
+    //后台线程的实际执行体：上一次扫描没跑完时直接放弃本次，避免任务堆积
+    private void runHealBlockScan() {
+        if (!healBlockScanPending.compareAndSet(false, true)) {
+            return; //上一次扫描还没结束，本次跳过
+        }
+        try {
+            detectNearbyHealBlock();
+        }
+        catch (Throwable throwable) {
+            Depression.LOGGER.error("Failed to scan nearby heal blocks", throwable);
+        }
+        finally {
+            healBlockScanPending.set(false);
+        }
+    }
+
+    //光环球扫描需要的主线程快照：区块引用必须在主线程取（ServerChunkCache#getChunkNow 在非主线程恒返回 null）
+    private static final class HealBlockScanSnapshot {
+        private final Level level;
+        private final ServerPlayer player;
+        private final int baseX;
+        private final int baseY;
+        private final int baseZ;
+        private final int radius;
+        private final int minChunkX;
+        private final int minChunkZ;
+        private final int chunkSpanZ;
+        private final LevelChunk[] loadedChunks;
+
+        private HealBlockScanSnapshot(Level level, ServerPlayer player, BlockPos center, int radius,
+                                      int minChunkX, int minChunkZ, int chunkSpanZ, LevelChunk[] loadedChunks) {
+            this.level = level;
+            this.player = player;
+            this.baseX = center.getX();
+            this.baseY = center.getY();
+            this.baseZ = center.getZ();
+            this.radius = radius;
+            this.minChunkX = minChunkX;
+            this.minChunkZ = minChunkZ;
+            this.chunkSpanZ = chunkSpanZ;
+            this.loadedChunks = loadedChunks;
+        }
+    }
+
+    //在主线程抓取本次扫描的快照（只取已加载区块，不触发区块加载），后台线程只读使用
+    private HealBlockScanSnapshot snapshotHealBlockScan() {
+        ServerPlayer scanningPlayer = player;
         int r = radiusMaxValue;
+        if (scanningPlayer == null || r < 0 || scanningPlayer.hasDisconnected()) {
+            return null;
+        }
+        Level level = scanningPlayer.level();
+        BlockPos center = scanningPlayer.blockPosition();
+        int minChunkX = (center.getX() - r) >> 4;
+        int maxChunkX = (center.getX() + r) >> 4;
+        int minChunkZ = (center.getZ() - r) >> 4;
+        int maxChunkZ = (center.getZ() + r) >> 4;
+        int chunkSpanZ = maxChunkZ - minChunkZ + 1;
+        LevelChunk[] loadedChunks = new LevelChunk[(maxChunkX - minChunkX + 1) * chunkSpanZ];
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; ++chunkX) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; ++chunkZ) {
+                loadedChunks[(chunkX - minChunkX) * chunkSpanZ + (chunkZ - minChunkZ)] = level.getChunkSource().getChunkNow(chunkX, chunkZ);
+            }
+        }
+        return new HealBlockScanSnapshot(level, scanningPlayer, center, r, minChunkX, minChunkZ, chunkSpanZ, loadedChunks);
+    }
+
+    public void detectNearbyHealBlock() { //检测周围球形半径的治疗光环方块
+        final HealBlockScanSnapshot snapshot = this.healBlockScanSnapshot; //主线程写入的快照
+        if (snapshot == null) {
+            return;
+        }
+        final ServerPlayer scanningPlayer = snapshot.player;
+        final Level level = snapshot.level;
+        final int r = snapshot.radius;
+        final int baseX = snapshot.baseX;
+        final int baseY = snapshot.baseY;
+        final int baseZ = snapshot.baseZ;
+        final int minChunkX = snapshot.minChunkX;
+        final int minChunkZ = snapshot.minChunkZ;
+        final int chunkSpanZ = snapshot.chunkSpanZ;
+        final LevelChunk[] loadedChunks = snapshot.loadedChunks;
 
         HashMap<Component, Integer> detectedBlocksCount = new HashMap<>();
         HashMap<String, Double> detectedTypesHealValue = new HashMap<>();
+        HashMap<Block, HealBlockInfo> blockInfoCache = new HashMap<>(); //同一次扫描内按方块去重，避免每格重复分配注册名/名称
         double totalHealValue = 0d;
 
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos(); //整次扫描复用同一个坐标对象
         for (int x = -r; x <= r; ++x) { // -r <= x <= r
             int yLimit = (int) Math.sqrt(r*r - x*x);
             for (int y = -yLimit; y <= yLimit; ++y) { // -sqrt(r*r - x*x) <= y <= sqrt(r*r - x*x)
+                int worldY = baseY + y;
+                if (level.isOutsideBuildHeight(worldY)) { //世界高度之外不存在方块，直接跳过
+                    continue;
+                }
                 int zLimit = (int) Math.sqrt(r*r - x*x - y*y);
                 for (int z = -zLimit; z <= zLimit; ++z) { // -sqrt(r*r - x*x - y*y) <= z <= sqrt(r*r - x*x - y*y)
-                    BlockPos blockPos = pos.offset(x, y, z);
-                    if (level.getChunk(blockPos).getPersistedStatus().isOrAfter(ChunkStatus.FULL)) { //若该区块已加载才进行计算（1.21.1: getStatus() → getPersistedStatus()）
-                        Block block = level.getBlockState(blockPos).getBlock();
-                        if (block instanceof FlowerPotBlock) {
-                            block = ((FlowerPotBlock) block).getPotted();
-                        }
-                        String id = block.arch$registryName().toString();
-                        Component name = block.getName();
-                        Double value = getTypeHealValue(id);
-                        Integer radius = nearbyHealBlockRadius.get(id);
-                        if (radius != null && value != null) {
-                            int distance = (int) Math.sqrt(x*x + y*y + z*z);
-                            if (distance <= radius) {
-                                detectedBlocksCount.put(name, detectedBlocksCount.getOrDefault(name, 0) + 1);
-                                String type = nearbyHealBlockType.get(id);
-                                if (type == null) {
-                                    type = id;
-                                }
-                                detectedTypesHealValue.put(type, detectedTypesHealValue.getOrDefault(type, 0d) + value / detectedBlocksCount.get(name));
-                            }
-                        }
+                    int worldX = baseX + x;
+                    int worldZ = baseZ + z;
+                    LevelChunk chunk = loadedChunks[((worldX >> 4) - minChunkX) * chunkSpanZ + ((worldZ >> 4) - minChunkZ)];
+                    if (chunk == null) { //该区块尚未加载，跳过
+                        continue;
+                    }
+                    mutablePos.set(worldX, worldY, worldZ);
+                    Block block = chunk.getBlockState(mutablePos).getBlock();
+                    if (block instanceof FlowerPotBlock) {
+                        block = ((FlowerPotBlock) block).getPotted();
+                    }
+                    HealBlockInfo info = blockInfoCache.get(block);
+                    if (info == null) {
+                        info = resolveHealBlockInfo(block);
+                        blockInfoCache.put(block, info);
+                    }
+                    if (!info.isHealBlock()) {
+                        continue;
+                    }
+                    int distance = (int) Math.sqrt(x*x + y*y + z*z);
+                    if (distance <= info.radius) {
+                        int count = detectedBlocksCount.getOrDefault(info.name, 0) + 1;
+                        detectedBlocksCount.put(info.name, count);
+                        detectedTypesHealValue.put(info.type, detectedTypesHealValue.getOrDefault(info.type, 0d) + info.value / count);
                     }
                 }
             }
         }
-        for (Map.Entry<String, Double> entry : detectedTypesHealValue.entrySet()) {;
+        for (Map.Entry<String, Double> entry : detectedTypesHealValue.entrySet()) {
             totalHealValue += mentalHeal(entry.getKey(), entry.getValue());
         }
 
@@ -456,8 +591,42 @@ public class MentalStatus {
                 }
             }
             if (maxHealName != null) {
-                ActionbarHintPacket.sendNearbyBlockHealPacket(player, maxHealName);
+                ActionbarHintPacket.sendNearbyBlockHealPacket(scanningPlayer, maxHealName);
             }
+        }
+    }
+
+    //方块 -> 治疗信息：注册名、名称组件与治疗值每种方块只解析一次（原来每格都解析一遍）
+    private HealBlockInfo resolveHealBlockInfo(Block block) {
+        String id = block.arch$registryName().toString();
+        Double value = getTypeHealValue(id);
+        Integer radius = nearbyHealBlockRadius.get(id);
+        if (value == null || radius == null) {
+            return HealBlockInfo.NONE;
+        }
+        String type = nearbyHealBlockType.get(id);
+        if (type == null) {
+            type = id;
+        }
+        return new HealBlockInfo(block.getName(), value, radius, type);
+    }
+
+    private static final class HealBlockInfo {
+        private static final HealBlockInfo NONE = new HealBlockInfo(null, null, null, null);
+        private final Component name;
+        private final Double value;
+        private final Integer radius;
+        private final String type;
+
+        private HealBlockInfo(Component name, Double value, Integer radius, String type) {
+            this.name = name;
+            this.value = value;
+            this.radius = radius;
+            this.type = type;
+        }
+
+        private boolean isHealBlock() {
+            return this.value != null && this.radius != null;
         }
     }
 

@@ -85,6 +85,7 @@ public class ClientPTSDManager {
         pausedTime = 0;
         heartBeatTick = 20;
         heartBeatVolume = 0.5;
+        stopTinnitus();
         falseEntities.clear();
     }
 

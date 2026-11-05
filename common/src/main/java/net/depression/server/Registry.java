@@ -51,6 +51,7 @@ public class Registry {
         pendingPlayers.clear();
         pendingChunkMaps.clear();
         playerEventMap.clear();
+        addPlayerQueue.clear(); //重开服务器时一并清空待定队列，避免残留的旧 ServerPlayer 引用
 
         profileMap.clear();
         PlayingChart.playingCharts.clear();
@@ -101,14 +102,26 @@ public class Registry {
         addPlayerQueue.add(player);
     }
     public static void loadPendingPlayers() {
-        for (Player player : addPlayerQueue) {
+        //逐个消费队列：处理完的玩家立刻出队。原来是每 tick 遍历整张队列且从不 poll，
+        //已处理过的玩家会永久留在队列里，既让每 tick 都重复遍历一遍，又让 ServerPlayer 引用无法回收
+        Player player;
+        while ((player = addPlayerQueue.poll()) != null) {
             UUID uuid = player.getUUID();
             if (pendingChunkMaps.containsKey(uuid)) {
-                pendingChunkMaps.get(uuid).move(pendingPlayers.get(uuid));
-                pendingChunkMaps.remove(uuid);
+                //待定期间挂起的区块跟踪请求，先补做一次
+                ChunkMap chunkMap = pendingChunkMaps.remove(uuid);
+                ServerPlayer pendingPlayer = pendingPlayers.get(uuid);
+                if (chunkMap != null && pendingPlayer != null) {
+                    chunkMap.move(pendingPlayer);
+                }
             }
             if (isPending(player)) {
-                pendingLevels.get(uuid).addNewPlayer(pendingPlayers.get(uuid));
+                ServerLevel serverLevel = pendingLevels.get(uuid);
+                ServerPlayer pendingPlayer = pendingPlayers.get(uuid);
+                if (serverLevel != null && pendingPlayer != null) {
+                    //此时 pendingPlayers 仍保留该项，ServerLevelMixin 会因 isPending 提前返回，从而继续执行原版 addNewPlayer
+                    serverLevel.addNewPlayer(pendingPlayer);
+                }
                 pendingPlayers.remove(uuid);
                 pendingLevels.remove(uuid);
             }

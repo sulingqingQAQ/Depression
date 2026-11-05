@@ -39,20 +39,21 @@ public class RCSelectionScreen extends Screen {
     public static final int black = 0x202020;
     public static final int white = 0xeeeeee;
     private static RCSelectionScreen instance;
+    /** 左侧曲目列表的可见槽位数（相对选中项 -2..+3） */
+    private static final int SONG_BUTTON_SLOTS = 6;
+    /** 中间槽位显示的是当前选中项本身，不需要按钮 */
+    private static final int CENTER_SONG_SLOT = 2;
+    /** 右侧难度列的最大槽位数 */
+    private static final int DIFFICULTY_BUTTON_SLOTS = 5;
     private ScaleButton startButton;
     private ScaleButton backButton;
     private ScaleButton editChartButton;
     private Song curSong;
-    public ArrayList<ScaleButton> songButtons = new ArrayList<>(6) {{
-        for (int i = 0; i < 6; ++i) {
-            add(null);
-        }
-    }};
-    public ArrayList<ScaleButton> difficultyButtons = new ArrayList<>(5) {{
-        for (int i = 0; i < 5; ++i) {
-            add(null);
-        }
-    }};
+    // 按钮实例在 init() 里一次性建好并缓存在这里，render() 只同步可见性：
+    // 原来的写法在 render() 里每帧 new ScaleButton + addRenderableWidget 且不回写缓存，
+    // 导致 Screen.renderables / children / narratables 无界增长（控件泄漏）。
+    public ArrayList<ScaleButton> songButtons = new ArrayList<>(Collections.nCopies(SONG_BUTTON_SLOTS, null));
+    public ArrayList<ScaleButton> difficultyButtons = new ArrayList<>(Collections.nCopies(DIFFICULTY_BUTTON_SLOTS, null));
     public RCSelectionScreen() {
         super(Component.literal(""));
     }
@@ -75,6 +76,70 @@ public class RCSelectionScreen extends Screen {
         addRenderableWidget(startButton);
         addRenderableWidget(backButton);
         addRenderableWidget(editChartButton);
+        buildSongButtons();
+        buildDifficultyButtons();
+    }
+
+    /**
+     * 建左侧 6 个槽位的按钮：槽位与屏幕坐标一一对应，与当前列表内容无关，所以整屏只建这一次。
+     * 中间槽位是当前选中项，不建按钮。
+     */
+    private void buildSongButtons() {
+        songButtons.clear();
+        for (int widgetIndex = 0; widgetIndex < SONG_BUTTON_SLOTS; ++widgetIndex) {
+            if (widgetIndex == CENTER_SONG_SLOT) {
+                songButtons.add(null);
+                continue;
+            }
+            final int offset = widgetIndex - CENTER_SONG_SLOT;
+            ScaleButton button = new ScaleButton(11d / 240d, ((double) (11 + widgetIndex * 21)) / 135d, 102d / 240d, 19d / 135d, 0, null, (scaleButton) -> {
+                RhythmCraftProfile currentProfile = DepressionClient.rcProfile;
+                if (currentProfile == null) {
+                    return;
+                }
+                currentProfile.index += offset;
+                RhythmCraftPacket.sendProfileUpdateC2S(currentProfile, ProfileDataType.INDEX);
+            });
+            button.visible = false;
+            songButtons.add(button);
+            addRenderableWidget(button);
+        }
+    }
+
+    /** 建右侧难度列按钮：同样与谱面内容无关，位置固定，只建一次。 */
+    private void buildDifficultyButtons() {
+        difficultyButtons.clear();
+        for (int index = 0; index < DIFFICULTY_BUTTON_SLOTS; ++index) {
+            final int difficulty = index + 1; // 与 render() 里的 i = index + 1 对齐，难度 0 是默认难度
+            ScaleButton button = new ScaleButton(((double) (128 + index * 21)) / 240d, 76 / 135d, 19d / 240d, 27d / 135d, 1, null, (scaleButton) -> {
+                RhythmCraftProfile currentProfile = DepressionClient.rcProfile;
+                if (currentProfile == null) {
+                    return;
+                }
+                currentProfile.difficulty = difficulty;
+                RhythmCraftPacket.sendProfileUpdateC2S(currentProfile, ProfileDataType.DIFFICULTY);
+            });
+            button.visible = false;
+            difficultyButtons.add(button);
+            addRenderableWidget(button);
+        }
+    }
+
+    /** 统一设置缓存按钮的可见性；不可见的按钮不渲染、也不响应点击。 */
+    private void setSongButtonsVisible(boolean visible) {
+        for (ScaleButton button : songButtons) {
+            if (button != null) {
+                button.visible = visible;
+            }
+        }
+    }
+
+    private void setDifficultyButtonsVisible(boolean visible) {
+        for (ScaleButton button : difficultyButtons) {
+            if (button != null) {
+                button.visible = visible;
+            }
+        }
     }
 
     private void loadChart() {
@@ -113,6 +178,9 @@ public class RCSelectionScreen extends Screen {
 
         //渲染选歌界面其它组件
         RhythmCraftProfile profile = DepressionClient.rcProfile;
+        //每帧先统一置为不可见，再由下面的逻辑点亮真正有效的槽位：按钮实例不新建也不移除
+        setSongButtonsVisible(false);
+        setDifficultyButtonsVisible(false);
         if (profile.sortType != null) {
             //渲染左侧
             ArrayList<Song> songList = null;
@@ -135,24 +203,15 @@ public class RCSelectionScreen extends Screen {
             int barHeight = 152;
             for (int i = -2; i < 4; ++i) {
                 int widgetIndex = i + 2;
-                ScaleButton button = songButtons.get(widgetIndex);
+                ScaleButton button = widgetIndex < songButtons.size() ? songButtons.get(widgetIndex) : null;
                 if (profile.index + i < 0 || profile.index + i >= songList.size()) { //不在歌曲列表范围内
-                    if (button != null) {
-                        removeWidget(button);
-                        songButtons.set(widgetIndex, null);
-                    }
-                    continue;
+                    continue; //按钮已在上方统一隐藏，这里不再 removeWidget
+                }
+                if (button != null) {
+                    button.visible = true; //复用 init() 建好的实例，只切换可见性
                 }
                 if (i != 0) {
-                    //添加按钮
-                    if (button == null) {
-                        int finalI = i;
-                        addRenderableWidget(new ScaleButton(11d/240d, ((double) (11 + widgetIndex * 21))/135d, 102d/240d, 19d/135d, 0, null, (scaleButton) -> {
-                            profile.index += finalI;
-                            RhythmCraftPacket.sendProfileUpdateC2S(profile, ProfileDataType.INDEX);
-                        }));
-                    }
-
+                    //按钮点击逻辑在 init() 中一次性注册，这里只负责绘制
                     Song song = songList.get(profile.index + i);
                     ArrayList<Integer> scores = profile.chartScores.get(song.id);
                     int rankNum = 0;
@@ -231,21 +290,12 @@ public class RCSelectionScreen extends Screen {
             for (int i = 1; i < curSong.charts.size(); ++i) {
                 int index = i - 1;
                 Chart chart = curSong.charts.get(i);
-                ScaleButton button = difficultyButtons.get(index);
+                ScaleButton button = index < difficultyButtons.size() ? difficultyButtons.get(index) : null;
                 if (chart == null) {
-                    if (button != null) {
-                        removeWidget(button);
-                        difficultyButtons.set(index, null);
-                    }
-                    continue;
+                    continue; //按钮已在上方统一隐藏，这里不再 removeWidget
                 }
-                //添加按钮
-                if (button == null) {
-                    int finalI = i;
-                    addRenderableWidget(new ScaleButton(((double) (128 + index * 21))/240d, 76/135d, 19d/240d, 27d/135d, 1, null, (scaleButton) -> {
-                        profile.difficulty = finalI;
-                        RhythmCraftPacket.sendProfileUpdateC2S(profile, ProfileDataType.DIFFICULTY);
-                    }));
+                if (button != null) {
+                    button.visible = true; //复用 init() 建好的实例，只切换可见性
                 }
 
                 guiGraphics.blit(DIFFICULTY_LABEL, difficultyX + index * deltaX, difficultyY, 0, 0, 7 * i, labelLength, labelHeight, labelLength, labelTextureHeight);

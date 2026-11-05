@@ -24,6 +24,11 @@ public class ClientLifecycleEventListener {
             ClientActionbarHint clientActionbarHint = DepressionClient.clientActionbarHint;
             clientActionbarHint.clear();
         }
+        else {
+            //换维度/跨维度死亡：移除旧维度的幻视实体，释放其实体引用的旧 ClientLevel。
+            String oldDimension = minecraft.level.dimension().location().toString();
+            ClientPTSDManager.falseEntities.remove(oldDimension);
+        }
         // CLIENT_LEVEL_LOAD 只在重建 ClientLevel 时触发：换档、活体换维度和跨维度死亡重生会触发，同维度死亡重生不会。
         // 跨维度死亡重生时本事件先于 CLIENT_PLAYER_RESPAWN，且 Minecraft.player 仍是死亡的旧玩家；
         // 此时跳过日记清理，把清或留统一交给 respawn 事件，避免 keep_diary_screen_on_respawn=true 的队列被提前清掉。

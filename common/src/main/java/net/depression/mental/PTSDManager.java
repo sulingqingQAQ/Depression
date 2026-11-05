@@ -39,7 +39,7 @@ public class PTSDManager {
     private double currentMaxPTSDValue;
     private final ConcurrentHashMap<String, Integer> contactValue = new ConcurrentHashMap<>(); //与PTSD源接触不受伤害的总时长（单位：秒）
     private final ConcurrentHashMap<String, Integer> remainingValue = new ConcurrentHashMap<>(); //与PTSD接触后的倒计时（单位：秒）
-    private final ConcurrentHashMap<String, ArrayDeque<Entity>> entities = new ConcurrentHashMap<>(); //PTSD源
+    private final ConcurrentHashMap<String, LinkedHashSet<Entity>> entities = new ConcurrentHashMap<>(); //PTSD源
     private Integer phonismCountdown;
     private Integer photismCountdown;
     public final LinkedHashSet<String> phonismId = new LinkedHashSet<>(); //可以造成幻听的伤害源ID
@@ -124,7 +124,7 @@ public class PTSDManager {
         double distance = 24;
         if (!ifSendRelief) {
             for (String key : entities.keySet()) {
-                ArrayDeque<Entity> list = entities.get(key);
+                LinkedHashSet<Entity> list = entities.get(key);
                 list.removeIf(entity -> entity == null || entity.isRemoved()); //移除已经死亡的实体
                 for (Entity entity : list) {
                     double dis = player.distanceTo(entity);
@@ -263,6 +263,9 @@ public class PTSDManager {
 
     public void trigger(String key) {
         if (remainingValue.containsKey(key)) {
+            if (remainingValue.get(key) == 30) {
+                return;
+            }
             remainingValue.put(key, 30); //30秒
         }
         else if (PTSD.containsKey(key)) {
@@ -277,6 +280,17 @@ public class PTSDManager {
         }
     }
 
+    private void trackEntity(String key, Entity entity) {
+        LinkedHashSet<Entity> list = entities.computeIfAbsent(key, k -> new LinkedHashSet<>());
+        list.remove(entity);
+        list.add(entity);
+        if (list.size() > 16) {
+            Iterator<Entity> iterator = list.iterator();
+            iterator.next();
+            iterator.remove();
+        }
+    }
+
     public void trigger(Entity entity) {
         String key = entity.getEncodeId();
         if (key == null) {
@@ -284,7 +298,7 @@ public class PTSDManager {
         }
         if (remainingValue.containsKey(key)) {
             remainingValue.put(key, 30); //30秒
-            entities.computeIfAbsent(key, k -> new ArrayDeque<>()).add(entity);
+            trackEntity(key, entity);
         }
         else if (PTSD.containsKey(key)) {
             Double value = PTSD.get(key);
@@ -292,7 +306,7 @@ public class PTSDManager {
             if (value > 6) {
                 if (!contactValue.containsKey(key)) {
                     contactValue.put(key, 0);
-                    entities.computeIfAbsent(key, k -> new ArrayDeque<>()).add(entity);
+                    trackEntity(key, entity);
                 }
                 remainingValue.put(key, 30); //30秒
             }

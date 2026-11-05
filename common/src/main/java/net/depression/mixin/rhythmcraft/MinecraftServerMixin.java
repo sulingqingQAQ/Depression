@@ -34,6 +34,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
@@ -64,7 +65,8 @@ public abstract class MinecraftServerMixin {
 
     @Inject(method = "saveAllChunks", at = @At(value = "RETURN"))
     private void onSaveAllChunks(boolean bl, boolean bl2, boolean bl3, CallbackInfoReturnable<Boolean> cir) {
-        for (PlayingChart playingChart : PlayingChart.playingCharts.values()) {
+        //B：遍历副本，清理时不会 ConcurrentModificationException
+        for (PlayingChart playingChart : new ArrayList<>(PlayingChart.playingCharts.values())) {
             playingChart.save(null, bl2, playingChart.noSave && !bl3);
         }
     }
@@ -97,17 +99,29 @@ public abstract class MinecraftServerMixin {
 
     @Inject(method = "tickChildren", at = @At(value = "HEAD"))
     private void tickPlayingCharts(BooleanSupplier booleanSupplier, CallbackInfo ci) {
-        for (PlayingChart playingChart : PlayingChart.playingCharts.values()) {
+        if (PlayingChart.playingCharts.isEmpty()) { //没有谱面时不复制、不巡检，避免每 tick 分配
+            return;
+        }
+        PlayingChart.cleanupStaleCharts(); //B：先回收结束/断连的谱面，避免继续 tick 已关闭的维度
+        for (PlayingChart playingChart : new ArrayList<>(PlayingChart.playingCharts.values())) {
             playingChart.tick(booleanSupplier);
         }
     }
 
     @Inject(method = "pollTaskInternal", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getAllLevels()Ljava/lang/Iterable;"), cancellable = true)
     private void pollTaskPlayingCharts(CallbackInfoReturnable<Boolean> cir) {
-        for (PlayingChart playingChart : PlayingChart.playingCharts.values()) {
+        if (PlayingChart.playingCharts.isEmpty()) {
+            return;
+        }
+        for (PlayingChart playingChart : new ArrayList<>(PlayingChart.playingCharts.values())) {
             if (playingChart.getChunkSource().pollTask()) {
                 cir.setReturnValue(true);
             }
         }
+    }
+
+    @Inject(method = "stopServer", at = @At(value = "RETURN"))
+    private void disposePlayingCharts(CallbackInfo ci) {
+        PlayingChart.disposeAll(); //B：关服兜底，回收所有残留谱面维度
     }
 }

@@ -85,13 +85,19 @@ public class ClientTickEventListener {
     }
 
     public static void onClientTick(Minecraft minecraft) {
+        ClientPlayingChart playingChart = DepressionClient.playingChart;
         if (minecraft.level == null) {
-            if (DepressionClient.playingChart != null) {
+            if (playingChart != null) {
                 DepressionClient.playingChart = null;
             }
             if (DepressionClient.oggStreamPlayer.isPlaying) {
                 DepressionClient.oggStreamPlayer.stop();
             }
+        }
+        //C 修复：谱面结束后（服务端 GAME_END）立刻丢弃客户端谱面对象，
+        //否则 ClientLevelMixin.entitiesForRendering 会每帧复制幻影音符列表、残留音符继续被渲染。
+        else if (playingChart != null && playingChart.isEnded) {
+            DepressionClient.playingChart = null;
         }
     }
 }

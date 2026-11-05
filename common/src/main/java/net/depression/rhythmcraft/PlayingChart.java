@@ -56,6 +56,8 @@ import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
 
 public class PlayingChart extends ServerLevel {
+    /** 谱面结束后，客户端迟迟不发 LOAD_BACK 时的兜底回收超时（5 分钟） */
+    private static final long END_IDLE_TIMEOUT_TICKS = 20L * 60L * 5L;
     public static MinecraftServer server;
     public static Executor executor;
     public static LevelStorageSource levelStorageSource = new LevelStorageSource(Platform.getGameFolder().resolve("rc_charts"),
@@ -81,12 +83,23 @@ public class PlayingChart extends ServerLevel {
     public long tickCount = 0;
     public int prevTick = 0;
     public boolean isEnded;
+    /** 幂等清理标记：复用同一个谱面对象重复调用 dispose() 时只清理一次 */
+    public boolean isDisposed;
+    /** 谱面结束时刻（overworld gameTime），-1 表示还没结束；用于客户端不发 LOAD_BACK 时的兜底回收 */
+    public long endedGameTime = -1L;
     public File levelFile;
+    /** 谱面目录的存档访问句柄（ServerLevel 不保存它），dispose() 时关闭以释放 session 锁 */
+    private LevelStorageSource.LevelStorageAccess chartStorage;
     public TreeMap<Long, Double> speedIntegration = new TreeMap<>();
     public PlayingChart(ServerPlayer player, Chart chart, boolean isEditMode) throws IOException {
-        super(player.server, executor, levelStorageSource.createAccess(chart.song.id + "/" + chart.levelPath),
+        this(player, chart, isEditMode, levelStorageSource.createAccess(chart.song.id + "/" + chart.levelPath));
+    }
+
+    private PlayingChart(ServerPlayer player, Chart chart, boolean isEditMode, LevelStorageSource.LevelStorageAccess chartStorage) throws IOException {
+        super(player.server, executor, chartStorage,
                 new PrimaryLevelData(worldData.getLevelSettings(), worldData.worldGenOptions(), PrimaryLevelData.SpecialWorldProperty.NONE, Lifecycle.stable()),
                 ModDimensions.CHART, chartStem, chunkProgressListener, false, 0, ImmutableList.of(), false, randomSequences);
+        this.chartStorage = chartStorage;
         this.player = player;
         this.chart = chart;
         this.isEditMode = isEditMode;
@@ -176,7 +189,10 @@ public class PlayingChart extends ServerLevel {
                 speedIntegration.get(lastKey) + chart.speedMap.get(lastKey) / 1200d * (tick - lastKey)
         ));
         player.server.execute(() -> {
-            minecart.teleportTo(dest.x, dest.y, dest.z);
+            //B 修复：isNeedMinecart=false 的谱面没有矿车，原实现直接解引用会 NPE
+            if (minecart != null) {
+                minecart.teleportTo(dest.x, dest.y, dest.z);
+            }
         });
         speed = new Vec3(normalInt.getX(), normalInt.getY(), normalInt.getZ()).scale(chart.speedMap.get(lastKey) / 1200d);
         if (chart.isNeedMinecart && !isPaused) {
@@ -192,7 +208,10 @@ public class PlayingChart extends ServerLevel {
         }
         if (!isPaused) {
             if (isJustStarted == null) {
-                minecart.setLockedDeltaMovement(Vec3.ZERO);
+                //B 修复：纯步行谱面 minecart 为 null（原来这里每 tick 都会 NPE）
+                if (minecart != null) {
+                    minecart.setLockedDeltaMovement(Vec3.ZERO);
+                }
                 super.tick(booleanSupplier);
                 return;
             }
@@ -234,7 +253,10 @@ public class PlayingChart extends ServerLevel {
             ++tickCount;
             if (tickCount > chart.song.durationInTicks) { //游戏结束
                 //highestCombo = Math.max(highestCombo, combo);
-                minecart.setLockedDeltaMovement(Vec3.ZERO);
+                //B 修复：纯步行谱面 minecart 为 null（原来这里必然 NPE，谱面永远结束不了）
+                if (minecart != null) {
+                    minecart.setLockedDeltaMovement(Vec3.ZERO);
+                }
                 RhythmCraftProfile profile = RhythmCraftProfile.getProfileByServerPlayer(player);
                 int prevScore = 0;
                 ArrayList<Integer> scores = profile.chartScores.get(chart.song.id);
@@ -255,6 +277,7 @@ public class PlayingChart extends ServerLevel {
                 RhythmCraftPacket.sendGameEnd(player, (int) Math.round(score), scoreInt, prevScore);
                 profile.newScore(chart.song.id, chart.difficulty, (int) Math.round(score));
                 isEnded = true;
+                endedGameTime = server.overworld().getGameTime(); //记录结束时刻，供 checkStale() 超时兜底
             }
         }
         super.tick(booleanSupplier);
@@ -327,6 +350,113 @@ public class PlayingChart extends ServerLevel {
                 }
         );
     }
+    /** 还原玩家进入谱面前的存档（位置 / 物品 / 维度），LOAD_BACK 与"玩家中途退出"的兜底清理共用。 */
+    public static boolean restorePlayerData(ServerPlayer player) {
+        if (player == null) {
+            return false;
+        }
+        UUID uuid = player.getUUID();
+        CompoundTag compoundTag = playerData.get(uuid);
+        if (compoundTag == null) {
+            return false;
+        }
+        player.stopRiding(); //先下车再整体还原存档，避免骑着矿车被传送
+        player.load(compoundTag);
+        DataResult dataResult = DimensionType.parseLegacy(new Dynamic<>(NbtOps.INSTANCE, compoundTag.get("Dimension")));
+        ResourceKey<Level> resourceKey = (ResourceKey<Level>) dataResult.result().orElse(Level.OVERWORLD);
+        ServerLevel serverLevel = server == null ? null : server.getLevel(resourceKey);
+        if (serverLevel != null) {
+            player.teleportTo(serverLevel, player.getX(), player.getY(), player.getZ(),
+                    player.getYRot(), player.getXRot());
+        }
+        Registry.particles.remove(uuid.toString());
+        return true;
+    }
+
+    /**
+     * B 修复：幂等回收谱面。
+     * 原实现只在 LOAD_BACK 时把谱面从 playingCharts 里删掉，中途退出 / 崩溃 / 客户端不发 LOAD_BACK 时，
+     * 这个 ServerLevel 会永久留在表里被 tickChildren / pollTaskInternal / saveAllChunks 反复处理，
+     * 维度、chunkSource、实体管理器和存档句柄全部泄漏。
+     */
+    public void dispose() {
+        if (isDisposed) {
+            return;
+        }
+        isDisposed = true;
+        UUID uuid = player == null ? null : player.getUUID();
+        if (player != null && minecart != null && player.getVehicle() == minecart) {
+            player.stopRiding();
+        }
+        if (minecart != null) {
+            minecart.discard(); //B：矿车原来 addFreshEntity 之后从不移除，退出后会留在谱面维度里
+            minecart = null;
+        }
+        if (remainingNotes != null) {
+            remainingNotes.clear();
+        }
+        if (uuid != null) {
+            playingCharts.remove(uuid, this); //只移除自己，避免旧实例误删同 UUID 的新谱面
+            playerData.remove(uuid);
+        }
+        try {
+            close(); //关闭 chunkSource / entityManager
+        } catch (Exception e) {
+            Depression.LOGGER.warn("Failed to close playing chart level {}", levelFile, e);
+        }
+        if (chartStorage != null) {
+            try {
+                chartStorage.close(); //ServerLevel 不持有 LevelStorageAccess，这里释放谱面目录的 session 锁
+            } catch (Exception e) {
+                Depression.LOGGER.warn("Failed to close playing chart storage {}", levelFile, e);
+            }
+            chartStorage = null;
+        }
+    }
+
+    /** 玩家退出（含关服时的 PlayerList.removeAll）兜底：先还原玩家数据，再回收谱面维度。 */
+    public static void onPlayerQuit(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        PlayingChart playingChart = playingCharts.get(player.getUUID());
+        if (playingChart == null || playingChart.isDisposed) {
+            return;
+        }
+        restorePlayerData(player); //不还原的话玩家会被留在谱面维度里，物品也停留在谱面存档
+        playingChart.dispose();
+    }
+
+    /** 关服兜底：把残留的谱面维度全部回收。 */
+    public static void disposeAll() {
+        for (PlayingChart playingChart : new ArrayList<>(playingCharts.values())) {
+            playingChart.dispose();
+        }
+    }
+
+    /** 每 tick 巡检：谱面结束但客户端一直不发 LOAD_BACK 时，超时回收。 */
+    public static void cleanupStaleCharts() {
+        for (PlayingChart playingChart : new ArrayList<>(playingCharts.values())) {
+            playingChart.checkStale();
+        }
+    }
+
+    private void checkStale() {
+        if (isDisposed) {
+            return;
+        }
+        if (player == null) {
+            dispose();
+            return;
+        }
+        if (isEnded && endedGameTime >= 0 && server != null) {
+            if (server.overworld().getGameTime() - endedGameTime > END_IDLE_TIMEOUT_TICKS) {
+                restorePlayerData(player);
+                dispose();
+            }
+        }
+    }
+
     public static void onReceiveLoadBack(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ServerPlayer player = (ServerPlayer) packetContext.getPlayer();
         player.server.execute(
@@ -335,16 +465,14 @@ public class PlayingChart extends ServerLevel {
                     if (!playerData.containsKey(uuid)) {
                         return;
                     }
-                    CompoundTag compoundTag = playerData.get(uuid);
-                    player.load(compoundTag);
-                    DataResult dataResult = DimensionType.parseLegacy(new Dynamic<>(NbtOps.INSTANCE, compoundTag.get("Dimension")));
-                    ResourceKey<Level> resourceKey = (ResourceKey<Level>) dataResult.result().orElse(Level.OVERWORLD);
-                    ServerLevel serverLevel = server.getLevel(resourceKey);
-                    player.teleportTo(serverLevel, player.getX(), player.getY(), player.getZ(),
-                            player.getYRot(), player.getXRot());
-                    playingCharts.remove(uuid);
-                    playerData.remove(uuid);
-                    Registry.particles.remove(uuid.toString());
+                    PlayingChart playingChart = playingCharts.get(uuid);
+                    restorePlayerData(player);
+                    if (playingChart != null) {
+                        playingChart.dispose(); //B：连谱面维度一起回收，不再只从表里删掉
+                    }
+                    else {
+                        playerData.remove(uuid);
+                    }
                 }
         );
     }
@@ -352,13 +480,23 @@ public class PlayingChart extends ServerLevel {
     public static void onReceivePauseChange(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         PlayingChart playingChart = PlayingChart.playingCharts.get(packetContext.getPlayer().getUUID());
         long tick = buf.readLong();
+        //B 修复：谱面可能已被兜底回收，迟到的暂停包直接丢弃
+        if (playingChart == null || playingChart.isDisposed) {
+            return;
+        }
         playingChart.isPaused = !playingChart.isPaused;
         playingChart.player.server.execute(() -> {
+            if (playingChart.isDisposed) {
+                return;
+            }
             if (playingChart.isPaused) {
                 playingChart.seek(tick);
-                playingChart.minecart.setLockedDeltaMovement(Vec3.ZERO);
+                //B 修复：isNeedMinecart=false 时 minecart 为 null
+                if (playingChart.minecart != null) {
+                    playingChart.minecart.setLockedDeltaMovement(Vec3.ZERO);
+                }
             }
-            else {
+            else if (playingChart.minecart != null) {
                 playingChart.minecart.setLockedDeltaMovement(playingChart.speed);
             }
         });
@@ -366,6 +504,9 @@ public class PlayingChart extends ServerLevel {
     public static void onReceiveProgressChange(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         PlayingChart playingChart = PlayingChart.playingCharts.get(packetContext.getPlayer().getUUID());
         long tick = buf.readLong();
+        if (playingChart == null || playingChart.isDisposed) { //B 修复：谱面已回收时丢弃迟到的进度包
+            return;
+        }
         playingChart.tickCount = tick;
         playingChart.seek(tick);
     }

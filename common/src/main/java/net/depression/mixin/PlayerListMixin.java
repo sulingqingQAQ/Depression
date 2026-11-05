@@ -32,6 +32,13 @@ public abstract class PlayerListMixin {
             ci.cancel();
         }
     }
+
+    //B 修复：玩家中途退出（含关服时的 removeAll）时还原玩家数据并回收谱面维度，
+    //原来只在客户端发 LOAD_BACK 时清理，退出后谱面会永久留在 playingCharts 里
+    @Inject(method = "remove", at = @At("HEAD"))
+    private void onRemovePlayingChart(ServerPlayer serverPlayer, CallbackInfo ci) {
+        PlayingChart.onPlayerQuit(serverPlayer);
+    }
     @Inject(method = "broadcast", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;send(Lnet/minecraft/network/protocol/Packet;)V"))
     private void onPlaySound(CallbackInfo ci, @Local(ordinal = 0) ServerPlayer player) {
