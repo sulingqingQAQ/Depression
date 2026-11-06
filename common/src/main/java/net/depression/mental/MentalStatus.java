@@ -414,6 +414,19 @@ public class MentalStatus {
         emotionValue = Math.max(-20d, emotionValue); //保证情绪值不超过下限
     }
 
+    //玩家致伤的当次情绪冲击：不写任何PTSD key/缓冲；非自伤时保留原有暗处倍率，自伤不放大
+    public synchronized void mentalHurtFromPlayer(Player source, double damage) {
+        if (!source.getUUID().equals(player.getUUID())) {
+            Level level = player.level();
+            BlockPos pos = player.blockPosition();
+            int brightness = Math.max(level.getBrightness(LightLayer.BLOCK, pos), level.getBrightness(LightLayer.SKY, pos));
+            if (brightness <= 7 && mentalTrait.isDarknessAffectEmotion) {
+                damage *= 1.3d + (7d - brightness) / 7d * 0.2d;
+            }
+        }
+        mentalHurt(damage);
+    }
+
     public synchronized void mentalHurt(Component component, double damage) {
         playerPTSDSet.add(component.getString());
         mentalHurt(component.getString(), damage);
@@ -711,6 +724,17 @@ public class MentalStatus {
         //读取PTSD管理相关内容
         CompoundTag ptsdManagerTag = tag.getCompound("ptsd_manager");
         ptsdManager.readNbt(ptsdManagerTag);
+        //旧档清理：玩家致伤致死已不再进入PTSD，只按player_ptsd_buffer记录的历史玩家key精确清理
+        if (!playerPTSDSet.isEmpty()) {
+            List<String> legacyPlayerKeys = new ArrayList<>(playerPTSDSet);
+            for (String key : legacyPlayerKeys) {
+                PTSD.remove(key);
+                PTSDTimeBuffer.remove(key);
+                PTSDValueBuffer.remove(key);
+            }
+            ptsdManager.purgeKeys(legacyPlayerKeys);
+            playerPTSDSet.clear();
+        }
     }
 
     public void writeNbt(CompoundTag tag) {
@@ -749,6 +773,9 @@ public class MentalStatus {
                 playerPTSDBufferTag.add(StringTag.valueOf(string));
             }
             tag.put("player_ptsd_buffer", playerPTSDBufferTag);
+        }
+        else {
+            tag.remove("player_ptsd_buffer"); //旧档清理后不再保留旧玩家key
         }
         //写入情绪值
         tag.putDouble("emotion_value", emotionValue);

@@ -135,10 +135,10 @@ public abstract class PlayerMixin {
         Entity directEntity = damageSource.getDirectEntity();
         try {
             if (entity != null) {
-                if (entity instanceof Player) { //如果伤害源是玩家
-                    mentalStatus.triggerHurt(entity.getDisplayName().getString());
+                if (entity instanceof Player) { //如果伤害源是玩家（含自伤、弓箭、投掷物）
+                    //设计规则：玩家致伤不进入PTSD（不写key、不触发窗口），只保留当次的无key情绪冲击
                     if (ifMentalHurt) {
-                        mentalStatus.mentalHurt(entity.getDisplayName(), damageRate);
+                        mentalStatus.mentalHurtFromPlayer((Player) entity, damageRate);
                     }
                 }
                 else {

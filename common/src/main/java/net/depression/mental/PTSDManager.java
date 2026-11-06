@@ -228,6 +228,17 @@ public class PTSDManager {
         PTSDOnsetPacket.sendToPlayer(player, 0, -1);
     }
 
+    //精确清理指定key在窗口/接触/实体/幻听幻视候选中的残留（旧档清理用）
+    public synchronized void purgeKeys(Collection<String> keys) {
+        for (String key : keys) {
+            contactValue.remove(key);
+            remainingValue.remove(key);
+            entities.remove(key);
+            phonismId.remove(key);
+            photismId.remove(key);
+        }
+    }
+
     public void hurt(String key) {
         if (contactValue.containsKey(key)) {
             contactValue.put(key, 0);

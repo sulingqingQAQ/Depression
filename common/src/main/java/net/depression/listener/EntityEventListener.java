@@ -35,10 +35,20 @@ public class EntityEventListener {
                 return EventResult.pass();
             }
             MentalStatus mentalStatus = Registry.mentalStatus.get(player.getUUID());
+            if (mentalStatus == null) {
+                return EventResult.pass();
+            }
             mentalStatus.ptsdManager.clear(player);
             Entity directEntity = damageSource.getDirectEntity();
+            if (directEntity == null) {
+                directEntity = entity; //没有直接来源时按同一实体处理
+            }
             double multiplier = Registry.playerEventMap.containsKey(player.getUUID()) ? 2d : 1d;
             if (entity != null) {
+                if (entity instanceof Player) {
+                    //设计规则：玩家致死不进入PTSD（不是漏写），窗口已在上面清掉
+                    return EventResult.pass();
+                }
                 String encodeId = entity.getEncodeId();
                 String directEncodeId = directEntity.getEncodeId();
                 if (encodeId == null) {
