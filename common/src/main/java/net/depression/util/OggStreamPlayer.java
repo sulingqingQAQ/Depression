@@ -19,11 +19,13 @@ public class OggStreamPlayer {
     private AudioInputStream audioInputStream;
     private AudioFormat decodedFormat; // 解码后的格式
     private AudioFormat fileFormat; // 文件格式
-    public boolean isPlaying = false;
-    public boolean isPaused = false;
+    //播放线程与主线程（stop/pause/resume）共享这两个标志，必须 volatile 才能保证 stop() 的写入被播放线程及时看到
+    public volatile boolean isPlaying = false;
+    public volatile boolean isPaused = false;
     public boolean isEscPaused = false;
     public boolean isSpacePaused = false;
     private Thread playThread;
+    private static final long STOP_JOIN_TIMEOUT_MILLIS = 500L; //stop() 等待播放线程退出的上限
     private long totalBytesRead = 0;
     private long bytesToSkip = 0;
     private double soughtTime = 0;
@@ -87,23 +89,36 @@ public class OggStreamPlayer {
         playThread = new Thread(() -> {
             byte[] buffer = new byte[4096];
             int bytesRead = 0;
+            boolean reachedEof = false; //只有读到文件末尾（自然结束）才需要把缓冲里剩下的音频放完
             totalBytesRead = 0;
             try {
                 while (isPlaying && (bytesRead = audioInputStream.read(buffer, 0, buffer.length)) != -1) {
                     while (isPaused) {
                         Thread.sleep(100);
                     }
+                    if (!isPlaying) { //暂停期间被主动停止：不再往已被 flush 的行里写
+                        break;
+                    }
                     bytesRead -= bytesRead % decodedFormat.getFrameSize();
                     sourceLine.write(buffer, 0, bytesRead);
                     totalBytesRead += bytesRead;
                 }
+                reachedEof = isPlaying && bytesRead == -1;
             } catch (Exception e) {
                 e.printStackTrace();
             }
             finally {
-                sourceLine.drain();
-                sourceLine.stop();
-                sourceLine.close();
+                try {
+                    if (reachedEof && isPlaying) {
+                        //自然结束：把缓冲里的尾巴放完。主动停止（isPlaying 已被 stop() 置 false）不 drain：
+                        //对已暂停（stop）的行，drain 会一直等到行恢复运行，导致主线程 join 永远不返回
+                        sourceLine.drain();
+                    }
+                    sourceLine.stop();
+                    sourceLine.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                 try {
                     audioInputStream.close();
                 } catch (IOException e) {
@@ -133,11 +148,34 @@ public class OggStreamPlayer {
     public void stop() {
         isPlaying = false;
         isPaused = false;
-        if (playThread != null && playThread.isAlive()) {
+        Thread thread = playThread;
+        if (thread != null && thread.isAlive()) {
+            //先让行停下并丢弃缓冲，唤醒可能阻塞在 write 里的播放线程；主动停止不需要把缓冲放完
             try {
-                playThread.join();
+                sourceLine.stop();
+                sourceLine.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                //这里在客户端主线程调用，join 必须有超时，不能永远等下去
+                thread.join(STOP_JOIN_TIMEOUT_MILLIS);
+                if (thread.isAlive()) {
+                    //还没退出：关闭行（会让阻塞中的 write/drain 立即返回）并打断 sleep，再等一小会儿
+                    try {
+                        sourceLine.close();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    thread.interrupt();
+                    thread.join(STOP_JOIN_TIMEOUT_MILLIS);
+                    if (thread.isAlive()) {
+                        Depression.LOGGER.warn("Ogg play thread did not exit in time, giving up waiting");
+                    }
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                Thread.currentThread().interrupt();
             }
         }
     }

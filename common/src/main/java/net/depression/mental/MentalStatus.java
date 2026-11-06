@@ -166,10 +166,8 @@ public class MentalStatus {
             }
         }
         if (tickCount % 20L == 0L) {
-            //方块光环检测：主线程先抓"已加载区块"快照，扫描本身提交给全局共享的单线程池。
-            //原来每个玩家各建一个 CachedThreadPool、永不关停，而且跨线程调用 getChunk 还会阻塞主线程
-            this.healBlockScanSnapshot = snapshotHealBlockScan();
-            HEAL_BLOCK_SCAN_EXECUTOR.submit(this::runHealBlockScan);
+            //方块光环检测：快照与提交都收进 submitHealBlockScan()（供 DTT 在方法入口按配置取消）
+            submitHealBlockScan();
             //睡眠检测
             ServerLevel level = player.serverLevel();
             if (mentalIllness.isInsomnia != null && level.getDayTime() % 24000 < 12010) {
@@ -464,11 +462,26 @@ public class MentalStatus {
     }
 
 
-    //后台线程的实际执行体：上一次扫描没跑完时直接放弃本次，避免任务堆积
-    private void runHealBlockScan() {
+    //提交光环扫描：主线程先抓"已加载区块"快照，扫描本身交给全局共享的单线程池。
+    //原来每个玩家各建一个 CachedThreadPool、永不关停，而且跨线程调用 getChunk 还会阻塞主线程。
+    //"上一次还没跑完就跳过"的占位必须在提交时做：执行器是单线程，任务串行，放在任务体里的 CAS 永远成功，队列会无界增长。
+    //DTT 会在本方法入口按配置取消，所以取消发生在占位之前，不会残留标记。
+    private void submitHealBlockScan() {
         if (!healBlockScanPending.compareAndSet(false, true)) {
-            return; //上一次扫描还没结束，本次跳过
+            return; //上一次提交的扫描还没结束，本次跳过
         }
+        try {
+            this.healBlockScanSnapshot = snapshotHealBlockScan();
+            HEAL_BLOCK_SCAN_EXECUTOR.submit(this::runHealBlockScan);
+        }
+        catch (Throwable throwable) {
+            healBlockScanPending.set(false); //提交失败（含快照异常）要释放占位，否则后续永远不再扫描
+            Depression.LOGGER.error("Failed to submit nearby heal block scan", throwable);
+        }
+    }
+
+    //后台线程的实际执行体；占位已在 submitHealBlockScan 里完成，这里只负责结束时释放
+    private void runHealBlockScan() {
         try {
             detectNearbyHealBlock();
         }

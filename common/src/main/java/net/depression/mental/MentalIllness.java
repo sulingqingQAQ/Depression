@@ -12,6 +12,8 @@ import net.minecraft.world.effect.MobEffects;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Random;
 
 public class MentalIllness {
@@ -57,16 +59,19 @@ public class MentalIllness {
             odCount = 0;
             lastOdTime = null;
         }
-        for (String key : medicineDelay.keySet()) {
-            int delay = medicineDelay.get(key);
+        //遍历时只能通过迭代器删除：原来在 keySet 遍历里直接 remove，同时有多种延迟药时会抛 ConcurrentModificationException
+        Iterator<Map.Entry<String, Integer>> medicineIterator = medicineDelay.entrySet().iterator();
+        while (medicineIterator.hasNext()) {
+            Map.Entry<String, Integer> entry = medicineIterator.next();
+            int delay = entry.getValue();
             if (delay > 0) {
-                medicineDelay.put(key, delay - 1);
+                entry.setValue(delay - 1);
             } else {
-                MobEffectInstance template = MedicineItem.effectMap.get(key);
+                MobEffectInstance template = MedicineItem.effectMap.get(entry.getKey());
                 player.addEffect(new MobEffectInstance(EffectHolders.resolve(template.getEffect()),
                         template.getDuration(), template.getAmplifier(),
                         template.isAmbient(), template.isVisible(), template.showIcon()));
-                medicineDelay.remove(key);
+                medicineIterator.remove();
             }
         }
         if (mentalHealthId == 4 && startIllnessTime == null) {
