@@ -489,7 +489,7 @@ public class ServerConfig {
                 # Mod will overwrite all the configurations if the version isn't match with the current mod version.
                 # If you want to keep your changes while updating, please change the version to the updated mod version.
 
-                version = "0.2.2+1.20.1"
+                version = "%s"
                 emotion_stabilize_rate = 0.1
                 mental_health_change_rate = 0.01
                 ptsd_damage_rate = 0.25
@@ -500,7 +500,7 @@ public class ServerConfig {
                 onset_emotion_decrease = 0.05
                 random_choose_mental_trait = false
                 # default_mental_trait = "normal"
-                """);
+                """.formatted(Depression.MOD_VERSION));
         return writer;
     }
 
