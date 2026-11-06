@@ -46,6 +46,8 @@ public class ClientMentalStatus {
         isJoinGame = true;
         mentalHealthId = 0;
         mentalIllnessString = "healthy";
+        mentalIllness.isCloseEye = false; //进世界时清掉上个世界残留的闭眼状态
+        mentalIllness.elapsedTime = 0d;
     }
 
     public static void receiveMentalTraitPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
@@ -92,6 +94,7 @@ public class ClientMentalStatus {
         }
 
         if (player.isCreative() || player.isSpectator()) {
+            mentalIllness.isCloseEye = false; //创造/旁观不走下面的render()，闭眼状态必须在这里复位，否则键鼠拦截会永久生效
             return;
         }
         Window window = minecraft.getWindow();

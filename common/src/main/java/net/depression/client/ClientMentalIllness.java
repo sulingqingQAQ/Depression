@@ -25,6 +25,9 @@ public class ClientMentalIllness {
         if (minecraft.level == null || minecraft.player == null) {
             return;
         }
+        if (minecraft.player.isCreative() || minecraft.player.isSpectator()) { //创造/旁观不渲染闭眼HUD，没人负责复位，这里直接不接收（挡切模式后的在途包）
+            return;
+        }
         startCloseEyeTime = Minecraft.getInstance().level.getGameTime() + 60;
         isCloseEye = true;
         minecraft.gui.setOverlayMessage(Component.translatable("message.depression.close_eye"), false);
