@@ -18,8 +18,12 @@ public class RhythmCraftProfile {
     public int difficulty = 1;
     public int index = 0;
     public void newScore(String id, int difficulty, int score) {
+        if (difficulty < 0) { //负下标无法扩容，直接忽略（正常谱面难度取自 Chart.difficulty，为 0..5）
+            return;
+        }
         ArrayList<Integer> scores = chartScores.get(id);
-        if (scores != null && scores.get(difficulty) >= score) {
+        //先确认目标难度已有成绩再比较：同歌低难度结算后 scores 只扩到低难度，直接 get 高难度会越界
+        if (scores != null && scores.size() > difficulty && scores.get(difficulty) >= score) {
             return;
         }
         if (scores == null) {

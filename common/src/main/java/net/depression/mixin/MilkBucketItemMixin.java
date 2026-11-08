@@ -27,7 +27,8 @@ public abstract class MilkBucketItemMixin {
         if (!level.isClientSide()) {
             if (livingEntity instanceof ServerPlayer player) {
                 MentalIllness mentalIllness = MentalStatus.getMentalStatusByServerPlayer(player).mentalIllness;
-                if (mentalIllness.odCount >= 2 && level.getGameTime() - mentalIllness.lastOdTime < 200) {
+                if (mentalIllness.odCount >= 2 && mentalIllness.lastOdTime != null
+                        && level.getGameTime() - mentalIllness.lastOdTime < 200) {
                     for (MobEffectInstance effectInstance : player.getActiveEffects()) {
                         savedEffectInstances.add(effectInstance);
                     }

@@ -115,6 +115,8 @@ public class MedicineItem extends Item {
                 if (mentalIllness.odCount < 3) {
                     mentalIllness.odCount++;
                 }
+                //记录本次过量发生的真实游戏刻：tick 用它做过量状态 12000 tick 衰减，喝牛奶用它判断 200 tick 内不清药效
+                mentalIllness.lastOdTime = player.level().getGameTime();
                 switch (mentalIllness.odCount) {
                     case 1:
                         break;
