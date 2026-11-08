@@ -13,6 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffect;
@@ -39,6 +40,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -84,8 +86,14 @@ public class MentalStatus {
     });
     //上一次提交的扫描还没结束时跳过本次提交，避免任务在队列里堆积
     private final AtomicBoolean healBlockScanPending = new AtomicBoolean(false);
-    //主线程抓取、后台线程只读的扫描快照（含已加载区块引用）
-    private volatile HealBlockScanSnapshot healBlockScanSnapshot;
+    //会话代数：玩家对象（死亡重生/重进）或维度变化时 +1，用于作废旧会话的后台扫描结果
+    private ServerPlayer sessionPlayer;
+    private Level sessionLevel;
+    private int sessionEpoch;
+    //后台算完、等主线程结算的结果；同一时刻最多保留一份，新的直接覆盖旧的
+    private volatile HealBlockScanResult pendingHealBlockScanResult;
+    //扫描结果最长可用时龄（tick）：执行器排队太久的结果直接作废；MAX_AGE=20 仅作保守观察门槛，本轮不擅自放大
+    private static final int HEAL_BLOCK_SCAN_MAX_AGE_TICKS = 20;
     private AttributeModifier speedModifier;
 
     private AttributeModifier attributeModifier;
@@ -117,6 +125,13 @@ public class MentalStatus {
     }
 
     public synchronized void tick(ServerPlayer player) {
+        //会话绑定必须放在所有早退之前：换玩家对象（死亡重生/重进）或换维度都要立刻作废旧扫描结果
+        if (player != sessionPlayer || player.level() != sessionLevel) {
+            sessionPlayer = player;
+            sessionLevel = player.level();
+            ++sessionEpoch;
+            pendingHealBlockScanResult = null;
+        }
         if (mentalTrait == null) {
             return;
         }
@@ -463,7 +478,7 @@ public class MentalStatus {
     }
 
 
-    //提交光环扫描：主线程先抓"已加载区块"快照，扫描本身交给全局共享的单线程池。
+    //提交光环扫描：主线程先抓"已加载区块 + 会话标识"快照，扫描本身交给全局共享的单线程池。
     //原来每个玩家各建一个 CachedThreadPool、永不关停，而且跨线程调用 getChunk 还会阻塞主线程。
     //"上一次还没跑完就跳过"的占位必须在提交时做：执行器是单线程，任务串行，放在任务体里的 CAS 永远成功，队列会无界增长。
     //DTT 会在本方法入口按配置取消，所以取消发生在占位之前，不会残留标记。
@@ -472,8 +487,13 @@ public class MentalStatus {
             return; //上一次提交的扫描还没结束，本次跳过
         }
         try {
-            this.healBlockScanSnapshot = snapshotHealBlockScan();
-            HEAL_BLOCK_SCAN_EXECUTOR.submit(this::runHealBlockScan);
+            HealBlockScanSnapshot snapshot = snapshotHealBlockScan();
+            if (snapshot == null) { //没有会话 / 已断线：不提交空任务，也不留占位
+                healBlockScanPending.set(false);
+                return;
+            }
+            //用内部类而不是 lambda：主包任何新增 lambda 都会位移 DTT 依赖的 lambda$tick$N 序号
+            HEAL_BLOCK_SCAN_EXECUTOR.submit(new HealBlockScanTask(snapshot));
         }
         catch (Throwable throwable) {
             healBlockScanPending.set(false); //提交失败（含快照异常）要释放占位，否则后续永远不再扫描
@@ -481,39 +501,82 @@ public class MentalStatus {
         }
     }
 
-    //后台线程的实际执行体；占位已在 submitHealBlockScan 里完成，这里只负责结束时释放
-    private void runHealBlockScan() {
-        try {
-            detectNearbyHealBlock();
+    //后台线程的实际执行体：只读快照 + 纯算术。不读 ServerPlayer、不碰 MentalStatus 状态、不发包。
+    private final class HealBlockScanTask implements Runnable {
+        private final HealBlockScanSnapshot snapshot;
+
+        private HealBlockScanTask(HealBlockScanSnapshot snapshot) {
+            this.snapshot = snapshot;
         }
-        catch (Throwable throwable) {
-            Depression.LOGGER.error("Failed to scan nearby heal blocks", throwable);
-        }
-        finally {
-            healBlockScanPending.set(false);
+
+        @Override
+        public void run() {
+            HealBlockScanResult result = null;
+            try {
+                result = scanHealBlocks(this.snapshot);
+            }
+            catch (Throwable throwable) {
+                Depression.LOGGER.error("Failed to scan nearby heal blocks", throwable);
+            }
+            finally {
+                healBlockScanPending.set(false); //占位在这里释放，保持"每个玩家同时只有一次扫描"
+            }
+            if (result != null) {
+                postHealBlockScanResult(result);
+            }
         }
     }
 
-    //光环球扫描需要的主线程快照：区块引用必须在主线程取（ServerChunkCache#getChunkNow 在非主线程恒返回 null）
+    //把结果交回主线程结算。服务器正在关停时 executeIfPossible 会抛 RejectedExecutionException，
+    //此时结果直接丢弃：绝不能在后台线程里退化成 execute() 的内联执行。
+    private void postHealBlockScanResult(HealBlockScanResult result) {
+        MinecraftServer server = result.server;
+        if (server == null || server.isStopped()) {
+            return;
+        }
+        this.pendingHealBlockScanResult = result;
+        try {
+            server.executeIfPossible(new HealBlockApplyTask());
+        }
+        catch (RejectedExecutionException rejected) {
+            this.pendingHealBlockScanResult = null;
+        }
+    }
+
+    //主线程结算入口（同样用内部类，避免新增 lambda）
+    private final class HealBlockApplyTask implements Runnable {
+        @Override
+        public void run() {
+            detectNearbyHealBlock();
+        }
+    }
+
+    //光环球扫描需要的主线程快照：区块引用与会话标识必须在主线程取
+    //（ServerChunkCache#getChunkNow 在非主线程恒返回 null）。
+    //后台线程只读：sections 是 final 数组、PalettedContainer.data 是 volatile 的不可变快照，
+    //所以跨线程读方块状态不会撕裂/崩溃，最坏情况只是读到"扫描期间被替换"的旧值。
     private static final class HealBlockScanSnapshot {
-        private final Level level;
+        private final MinecraftServer server;
         private final ServerPlayer player;
-        private final int baseX;
-        private final int baseY;
-        private final int baseZ;
+        private final Level level;
+        private final int sessionEpoch;
+        private final int submitTick;
+        private final BlockPos center;
         private final int radius;
         private final int minChunkX;
         private final int minChunkZ;
         private final int chunkSpanZ;
         private final LevelChunk[] loadedChunks;
 
-        private HealBlockScanSnapshot(Level level, ServerPlayer player, BlockPos center, int radius,
+        private HealBlockScanSnapshot(MinecraftServer server, ServerPlayer player, Level level, int sessionEpoch,
+                                      int submitTick, BlockPos center, int radius,
                                       int minChunkX, int minChunkZ, int chunkSpanZ, LevelChunk[] loadedChunks) {
-            this.level = level;
+            this.server = server;
             this.player = player;
-            this.baseX = center.getX();
-            this.baseY = center.getY();
-            this.baseZ = center.getZ();
+            this.level = level;
+            this.sessionEpoch = sessionEpoch;
+            this.submitTick = submitTick;
+            this.center = center.immutable();
             this.radius = radius;
             this.minChunkX = minChunkX;
             this.minChunkZ = minChunkZ;
@@ -522,14 +585,48 @@ public class MentalStatus {
         }
     }
 
+    //后台算出来的不可变结果：只带结算需要的少量数据，不再持有 LevelChunk
+    private static final class HealBlockScanResult {
+        private final MinecraftServer server;
+        private final ServerPlayer player;
+        private final Level level;
+        private final int sessionEpoch;
+        private final int submitTick;
+        private final BlockPos center;
+        private final int radius;
+        private final HashMap<Component, Integer> detectedBlocksCount;
+        private final HashMap<String, Double> detectedTypesHealValue;
+
+        private HealBlockScanResult(HealBlockScanSnapshot snapshot,
+                                    HashMap<Component, Integer> detectedBlocksCount,
+                                    HashMap<String, Double> detectedTypesHealValue) {
+            this.server = snapshot.server;
+            this.player = snapshot.player;
+            this.level = snapshot.level;
+            this.sessionEpoch = snapshot.sessionEpoch;
+            this.submitTick = snapshot.submitTick;
+            this.center = snapshot.center;
+            this.radius = snapshot.radius;
+            this.detectedBlocksCount = detectedBlocksCount;
+            this.detectedTypesHealValue = detectedTypesHealValue;
+        }
+    }
+
     //在主线程抓取本次扫描的快照（只取已加载区块，不触发区块加载），后台线程只读使用
     private HealBlockScanSnapshot snapshotHealBlockScan() {
-        ServerPlayer scanningPlayer = player;
+        ServerPlayer scanningPlayer = sessionPlayer;
         int r = radiusMaxValue;
-        if (scanningPlayer == null || r < 0 || scanningPlayer.hasDisconnected()) {
+        if (scanningPlayer == null || r < 0 || scanningPlayer.hasDisconnected() || scanningPlayer.isRemoved()) {
+            return null;
+        }
+        MinecraftServer server = scanningPlayer.getServer();
+        if (server == null || server.isStopped()) {
             return null;
         }
         Level level = scanningPlayer.level();
+        if (level != sessionLevel) { //维度刚变、tick 还没跑到：这一轮直接放弃
+            return null;
+        }
         BlockPos center = scanningPlayer.blockPosition();
         int minChunkX = (center.getX() - r) >> 4;
         int maxChunkX = (center.getX() + r) >> 4;
@@ -542,20 +639,17 @@ public class MentalStatus {
                 loadedChunks[(chunkX - minChunkX) * chunkSpanZ + (chunkZ - minChunkZ)] = level.getChunkSource().getChunkNow(chunkX, chunkZ);
             }
         }
-        return new HealBlockScanSnapshot(level, scanningPlayer, center, r, minChunkX, minChunkZ, chunkSpanZ, loadedChunks);
+        return new HealBlockScanSnapshot(server, scanningPlayer, level, sessionEpoch, server.getTickCount(),
+                center, r, minChunkX, minChunkZ, chunkSpanZ, loadedChunks);
     }
 
-    public void detectNearbyHealBlock() { //检测周围球形半径的治疗光环方块
-        final HealBlockScanSnapshot snapshot = this.healBlockScanSnapshot; //主线程写入的快照
-        if (snapshot == null) {
-            return;
-        }
-        final ServerPlayer scanningPlayer = snapshot.player;
+    //后台线程：把球形范围扫成"类型 -> 聚合治疗值"，不产生任何副作用
+    private HealBlockScanResult scanHealBlocks(HealBlockScanSnapshot snapshot) {
         final Level level = snapshot.level;
         final int r = snapshot.radius;
-        final int baseX = snapshot.baseX;
-        final int baseY = snapshot.baseY;
-        final int baseZ = snapshot.baseZ;
+        final int baseX = snapshot.center.getX();
+        final int baseY = snapshot.center.getY();
+        final int baseZ = snapshot.center.getZ();
         final int minChunkX = snapshot.minChunkX;
         final int minChunkZ = snapshot.minChunkZ;
         final int chunkSpanZ = snapshot.chunkSpanZ;
@@ -564,7 +658,6 @@ public class MentalStatus {
         HashMap<Component, Integer> detectedBlocksCount = new HashMap<>();
         HashMap<String, Double> detectedTypesHealValue = new HashMap<>();
         HashMap<Block, HealBlockInfo> blockInfoCache = new HashMap<>(); //同一次扫描内按方块去重，避免每格重复分配注册名/名称
-        double totalHealValue = 0d;
 
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos(); //整次扫描复用同一个坐标对象
         for (int x = -r; x <= r; ++x) { // -r <= x <= r
@@ -604,14 +697,34 @@ public class MentalStatus {
                 }
             }
         }
-        for (Map.Entry<String, Double> entry : detectedTypesHealValue.entrySet()) {
+        return new HealBlockScanResult(snapshot, detectedBlocksCount, detectedTypesHealValue);
+    }
+
+    //主线程结算：逐类型治疗 + 提示包（DTT 的两处 mixin 锚点都在本方法里）
+    public void detectNearbyHealBlock() {
+        final HealBlockScanResult result = this.pendingHealBlockScanResult;
+        if (result == null) {
+            return;
+        }
+        this.pendingHealBlockScanResult = null;
+        if (!isHealBlockScanResultCurrent(result)) {
+            return; //旧会话 / 旧维度 / 已断线 / 排队太久 / 玩家已离开扫描点：整份结果作废
+        }
+        final ServerPlayer scanningPlayer = result.player;
+
+        double totalHealValue = 0d;
+        for (Map.Entry<String, Double> entry : result.detectedTypesHealValue.entrySet()) {
             totalHealValue += mentalHeal(entry.getKey(), entry.getValue());
         }
+
+        //结算扩展点：治疗已经生效，提示包还没发。DTT 在这里做"只保留最大值"的结算，
+        //不再依赖提示包阈值，避免小额治疗丢失与暂存值跨扫描。
+        afterHealBlockScanApplied(totalHealValue);
 
         if (totalHealValue > 0.25d) {
             Component maxHealName = null;
             int mostHealCount = 0;
-            for (Map.Entry<Component, Integer> entry : detectedBlocksCount.entrySet()) {
+            for (Map.Entry<Component, Integer> entry : result.detectedBlocksCount.entrySet()) {
                 if (entry.getValue() > mostHealCount) {
                     mostHealCount = entry.getValue();
                     maxHealName = entry.getKey();
@@ -621,6 +734,39 @@ public class MentalStatus {
                 ActionbarHintPacket.sendNearbyBlockHealPacket(scanningPlayer, maxHealName);
             }
         }
+    }
+
+    //结算扩展点（默认空实现）：只在主线程、每次扫描结算一次
+    protected void afterHealBlockScanApplied(double totalHealValue) {
+    }
+
+    //旧会话结果失效判定：全部条件都要求"当前仍是提交扫描时的那一次会话"
+    private boolean isHealBlockScanResultCurrent(HealBlockScanResult result) {
+        ServerPlayer current = this.sessionPlayer;
+        if (current == null || current != result.player) { //死亡重生/重进：ServerPlayer 换了对象
+            return false;
+        }
+        if (result.sessionEpoch != this.sessionEpoch) { //会话代数变化（换对象/换维度）
+            return false;
+        }
+        if (current.level() != result.level) { //跨维度
+            return false;
+        }
+        if (current.hasDisconnected() || current.isRemoved()) {
+            return false;
+        }
+        MinecraftServer server = result.server;
+        if (server == null || server.isStopped()) { //关服/换档
+            return false;
+        }
+        if (Registry.mentalStatus.get(current.getUUID()) != this) { //实例已被替换（重进后新建）
+            return false;
+        }
+        if (server.getTickCount() - result.submitTick > HEAL_BLOCK_SCAN_MAX_AGE_TICKS) {
+            return false;
+        }
+        double radius = result.radius;
+        return current.blockPosition().distSqr(result.center) <= radius * radius;
     }
 
     //方块 -> 治疗信息：注册名、名称组件与治疗值每种方块只解析一次（原来每格都解析一遍）
