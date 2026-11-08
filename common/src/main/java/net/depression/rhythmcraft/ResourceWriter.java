@@ -77,7 +77,7 @@ public class ResourceWriter {
                 File songFolderFile = new File(songURL.toURI());
                 copyDirectory(songFolderFile, songFolder);
             }
-            else if (songURL.getProtocol().equals("jar") || chartProtocol.equals("union")) {
+            else if (songURL.getProtocol().equals("jar") || songURL.getProtocol().equals("union")) {
                 // 运行环境，资源在jar包中
                 String jarPath = ResourceWriter.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
                 try (JarFile jar = new JarFile(jarPath.substring(0, jarPath.lastIndexOf(".jar") + 4))) {
@@ -111,13 +111,18 @@ public class ResourceWriter {
             IOUtils.copy(inputStream, outputStream);
         }
         catch (IOException e) {
-            e.printStackTrace();
+            //失败时删掉半成品：否则下次启动会因 exists() 直接跳过，把残缺资源永久留在盘上
+            if (outputFile.exists() && !outputFile.delete()) {
+                Depression.LOGGER.warn("Failed to delete partial chart resource: " + outputFile);
+            }
+            throw e;
         }
     }
 
     public static void copyDirectory(File sourceDir, File destDir) throws IOException {
-        if (!destDir.exists()) {
-            return;
+        //递归前先建目标目录：开发环境(file 协议)只建了根目录，子目录不存在时原来会整棵子树静默跳过
+        if (!destDir.exists() && !destDir.mkdirs()) {
+            throw new IOException("Failed to create directory: " + destDir);
         }
 
         File[] files = sourceDir.listFiles();

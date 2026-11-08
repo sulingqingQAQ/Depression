@@ -37,9 +37,11 @@ public class OggStreamPlayer {
     private float maxVolume;
     private double durationInSeconds;
     private long bytesToIgnore;
-    private boolean wasPaused;
-    public boolean isForwarding;
-    private Thread forwardThread;
+    //快进任务的状态位跨线程读写（UI 线程发起、工作线程复位），必须 volatile 才能被及时看到
+    public volatile boolean isForwarding;
+    private volatile Thread forwardThread;
+    //快进任务身份：每次 forward/cancel 自增，旧任务醒来时据此判断自己是否已被取代
+    private volatile long forwardTaskId = 0L;
     public void load(String filePath, double durationInSeconds) throws UnsupportedAudioFileException, IOException, LineUnavailableException {
         this.filePath = filePath; // 保存文件路径
         // 获取音频输入流
@@ -82,6 +84,7 @@ public class OggStreamPlayer {
     }
 
     public void play() {
+        cancelForward(); //上一次播放遗留的快进任务不得影响这次播放
         isPlaying = true;
         isPaused = false;
         sourceLine.start();
@@ -146,6 +149,7 @@ public class OggStreamPlayer {
     }
 
     public void stop() {
+        cancelForward(); //快进任务必须随播放一起停，否则它醒来会恢复暂停态/在已关闭的行上操作
         isPlaying = false;
         isPaused = false;
         Thread thread = playThread;
@@ -180,6 +184,7 @@ public class OggStreamPlayer {
         }
     }
     public void seek(long ticks) {
+        cancelForward(); //跳转会让行重新 open/start，旧快进任务不能再对它恢复暂停态
         boolean wasPaused = isPaused;
         pause();
         sourceLine.stop();
@@ -244,23 +249,57 @@ public class OggStreamPlayer {
         }
     }
     public void forward(long ticks){
-        wasPaused = isPaused;
+        cancelForward(); //同一时刻只允许一个快进任务：旧的先作废，避免它在新任务之后恢复暂停/复位标志
+        boolean wasPausedBeforeForward = isPaused;
         isPaused = false;
         sourceLine.start();
+        long taskId = ++forwardTaskId;
         isForwarding = true;
-        forwardThread = new Thread(() -> {
+        Thread thread = new Thread(() -> {
+            boolean sleptThrough = false;
             try {
                 Thread.sleep(ticks * 50);
-                if (wasPaused) {
-                    pause();
-                }
-                isForwarding = false;
-                forwardThread.join();
+                sleptThrough = true;
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                //被 stop()/seek()/play()/新的 forward() 取消：不恢复暂停态，状态由取消方负责
+                Thread.currentThread().interrupt();
+            } finally {
+                //身份校验：只有仍是当前任务才允许复位；被取代的旧任务醒来后不得影响新任务/新歌曲
+                if (forwardTaskId == taskId) {
+                    if (sleptThrough && wasPausedBeforeForward) {
+                        restorePausedStateAfterForward();
+                    }
+                    isForwarding = false;
+                    forwardThread = null;
+                }
             }
-        });
-        forwardThread.start();
+        }, "depression-ogg-forward");
+        thread.setDaemon(true); //快进只是界面节流，不能拖住 JVM 退出
+        forwardThread = thread;
+        thread.start();
+    }
+
+    /** 作废未完成的快进任务：自增身份使旧任务的 finally 校验失败，并打断它可能仍在进行的 sleep。 */
+    private void cancelForward() {
+        ++forwardTaskId;
+        isForwarding = false;
+        Thread thread = forwardThread;
+        forwardThread = null;
+        if (thread != null && thread.isAlive()) {
+            thread.interrupt();
+        }
+    }
+
+    /** 快进结束恢复"快进前的暂停态"；播放已停止或行已关闭时跳过，避免与 stop() 的 close 竞争。 */
+    private void restorePausedStateAfterForward() {
+        if (!isPlaying) {
+            return;
+        }
+        try {
+            pause();
+        } catch (IllegalStateException e) {
+            Depression.LOGGER.debug("Skip restoring pause state after forward: audio line is already closed");
+        }
     }
     public double getElapsedTimeInSeconds() {
         return soughtTime + sourceLine.getMicrosecondPosition() / 1000000d;
