@@ -42,6 +42,7 @@
     "rhythmcraft.BlockMixin",
     "rhythmcraft.DimensionTypeMixin",
     "rhythmcraft.EntityAccessor",
+    "rhythmcraft.EntityStorageMixin",
     "rhythmcraft.LevelStorageAccessMixin",
     "rhythmcraft.MinecraftServerMixin",
     "rhythmcraft.PlayerListAccessor",
