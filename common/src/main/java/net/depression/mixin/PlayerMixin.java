@@ -7,6 +7,8 @@ import net.depression.mental.MentalStatus;
 import net.depression.network.MentalStatusPacket;
 import net.depression.rhythmcraft.PlayingChart;
 import net.depression.rhythmcraft.RhythmCraftProfile;
+import net.depression.server.PlayerSaveLifecycle;
+import net.depression.server.PlayerSaveTracker;
 import net.depression.server.Registry;
 import net.depression.server.StatManager;
 import net.minecraft.core.component.DataComponents;
@@ -215,29 +217,32 @@ public abstract class PlayerMixin {
         if (player.level().isClientSide())
             return;
         UUID uuid = player.getUUID();
-        MentalStatus mentalStatus = MentalStatus.getMentalStatusByServerPlayer(player);
-        mentalStatus.writeNbt(tag);
-        RhythmCraftProfile profile = RhythmCraftProfile.getProfileByServerPlayer(player);
-        profile.writeNbt(tag);
-
-        StatManager stat = Registry.statManager.get(uuid);
-        if (stat == null) {
-            return;
-        }
-        CompoundTag oldStats; //保存玩家的旧统计数据
-        if (tag.contains("old_stats")) {
-            oldStats = tag.getCompound("old_stats");
+        //序列化只读：同一玩家保存多少次（单人房主一次保存会序列化两次）输出都相同。
+        //这里绝不创建、绝不清理注册表，状态缺失就不写对应的键（不写默认值覆盖真值）。
+        PlayerSaveTracker.noteSerialization(uuid);
+        MentalStatus mentalStatus = MentalStatus.peek(uuid);
+        if (mentalStatus != null) {
+            mentalStatus.writeNbt(tag);
         }
         else {
-            oldStats = new CompoundTag();
+            PlayerSaveLifecycle.warnMissingOnce(uuid, "mental_status");
         }
-        stat.writeNbt(oldStats);
-        tag.put("old_stats", oldStats);
+        RhythmCraftProfile profile = RhythmCraftProfile.peek(uuid);
+        if (profile != null) {
+            profile.writeNbt(tag);
+        }
 
-        if (Registry.quitPlayers.contains(uuid)) { //若玩家已经退出游戏，删除玩家的心理状态
-            Registry.quitPlayers.remove(uuid);
-            Registry.mentalStatus.remove(uuid);
-            Registry.statManager.remove(uuid); //也删除玩家的旧统计数据
+        StatManager stat = Registry.statManager.get(uuid);
+        if (stat != null) { //旧统计缺失只跳过 old_stats，不影响上面已写入的键
+            CompoundTag oldStats; //保存玩家的旧统计数据
+            if (tag.contains("old_stats")) {
+                oldStats = tag.getCompound("old_stats");
+            }
+            else {
+                oldStats = new CompoundTag();
+            }
+            stat.writeNbt(oldStats);
+            tag.put("old_stats", oldStats);
         }
     }
 }

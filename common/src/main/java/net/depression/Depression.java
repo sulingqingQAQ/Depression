@@ -89,7 +89,6 @@ public final class Depression {
 
         CommandRegistrationEvent.EVENT.register(CommandRegistrationListener::registerCommands);
         PlayerEvent.SMELT_ITEM.register(PlayerEventListener::onSmeltItem);
-        PlayerEvent.PLAYER_QUIT.register(PlayerEventListener::onPlayerQuit);
         PlayerEvent.ATTACK_ENTITY.register(PlayerEventListener::onAttackEntity);
         PlayerEvent.PLAYER_ADVANCEMENT.register(PlayerEventListener::onPlayerAdvancement);
         BlockEvent.PLACE.register(BlockEventListener::onBlockPlace);
@@ -97,6 +96,7 @@ public final class Depression {
         EntityEvent.LIVING_DEATH.register(EntityEventListener::onEntityDeath);
         EntityEvent.LIVING_CHECK_SPAWN.register(EntityEventListener::onEntityCheckSpawn);
         LifecycleEvent.SERVER_BEFORE_START.register(LifeCycleEventListener::onServerStart);
+        LifecycleEvent.SERVER_STOPPED.register(LifeCycleEventListener::onServerStopped);
         TickEvent.SERVER_POST.register(TickEventListener::onServerTick);
         TickEvent.SERVER_LEVEL_POST.register(TickEventListener::onServerLevelTick);
         InteractionEvent.RIGHT_CLICK_BLOCK.register(InteractionEventListener::onRightClickBlock);

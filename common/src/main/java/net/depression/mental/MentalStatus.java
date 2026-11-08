@@ -34,6 +34,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.FlowerPotBlock;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -804,6 +805,12 @@ public class MentalStatus {
         CompoundTag ptsdManagerTag = new CompoundTag();
         ptsdManager.writeNbt(ptsdManagerTag);
         tag.put("ptsd_manager", ptsdManagerTag);
+    }
+
+    /** 只读查询：不存在就返回 null，绝不创建（供 NBT 序列化回调使用，序列化不得有注册表副作用） */
+    @Nullable
+    public static MentalStatus peek(final UUID uuid) {
+        return Registry.mentalStatus.get(uuid);
     }
 
     public static MentalStatus getMentalStatusByServerPlayer(final Player player) {

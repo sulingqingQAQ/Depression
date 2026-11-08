@@ -8,6 +8,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -96,6 +97,12 @@ public class RhythmCraftProfile {
             return 1;
         }
         return 0;
+    }
+
+    /** 只读查询：不存在就返回 null，绝不创建（供 NBT 序列化回调使用，序列化不得有注册表副作用） */
+    @Nullable
+    public static RhythmCraftProfile peek(UUID uuid) {
+        return Registry.profileMap.get(uuid);
     }
 
     public static RhythmCraftProfile getProfileByServerPlayer(Player player) {

@@ -2,6 +2,7 @@ package net.depression.server;
 
 import com.mojang.authlib.GameProfile;
 import dev.architectury.networking.NetworkManager;
+import net.depression.Depression;
 import net.depression.mental.MentalStatus;
 import net.depression.mental.MentalTrait;
 import net.depression.network.DiaryUpdatePacket;
@@ -23,6 +24,7 @@ import net.minecraft.server.players.PlayerList;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.WrittenBookContent;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,7 +33,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class Registry {
 
     public static final HashMap<UUID, MentalStatus> mentalStatus = new HashMap<>();
-    public static final HashSet<UUID> quitPlayers = new HashSet<>();
     public static final HashMap<UUID, StatManager> statManager = new HashMap<>();
     public static final ConcurrentHashMap<UUID, RhythmCraftProfile> profileMap = new ConcurrentHashMap<>();
     private static final HashMap<UUID, ItemStack> diaryUpdateMap = new HashMap<>();
@@ -43,8 +44,17 @@ public class Registry {
 
     public static HashMap<String, LinkedList<ParticleFormulaInstance>> particles = new HashMap<>();
     public static void init() {
+        resetAll();
+        PlayingChart.playingCharts.clear();
+        PlayingChart.playerData.clear();
+    }
+
+    /**
+     * 清空全部与玩家绑定的服务端注册表（不含音游的 playingCharts / playerData，那两张表由音游自己收尾，init 里另行保留）。
+     * 只在服务器开始前（init）和服务器停止后（SERVER_STOPPED）调用，绝不在保存期间调用。
+     */
+    public static void resetAll() {
         mentalStatus.clear();
-        quitPlayers.clear();
         statManager.clear();
         diaryUpdateMap.clear();
         pendingLevels.clear();
@@ -54,8 +64,42 @@ public class Registry {
         addPlayerQueue.clear(); //重开服务器时一并清空待定队列，避免残留的旧 ServerPlayer 引用
 
         profileMap.clear();
-        PlayingChart.playingCharts.clear();
-        PlayingChart.playerData.clear();
+        PlayerSaveLifecycle.reset(); //写盘追踪 / 已清理实体记录 / 缺失告警去重，随服务器生命周期一起重置
+    }
+
+    /** 该 UUID 是否还留有持久状态（登录对账时只用来决定要不要打日志） */
+    public static boolean hasPersistentState(UUID uuid) {
+        return mentalStatus.containsKey(uuid) || statManager.containsKey(uuid) || profileMap.containsKey(uuid);
+    }
+
+    /**
+     * 清理该玩家的持久状态（心理状态 / 旧统计 / 音游 profile）。幂等，缺失项无动作。
+     * 只能在“该玩家的退出保存已经完成之后”（PlayerList.remove RETURN）、登录对账、服务器开始前 / 停止后调用。
+     */
+    public static void evictPersistent(UUID uuid) {
+        mentalStatus.remove(uuid);
+        statManager.remove(uuid);
+        profileMap.remove(uuid);
+    }
+
+    /**
+     * 清理该玩家的瞬态数据（首次选特质的 pending、待处理队列、挂起的日记更新）。与写盘结果无关，一律清。
+     * player 非空（退出）时按实体身份判断，只清属于这个实体的项，避免误清同 UUID 更新会话的 pending；
+     * player 为空（登录对账，新实体还没登记）时按 UUID 清。
+     */
+    public static void clearTransient(UUID uuid, @Nullable ServerPlayer player) {
+        if (player == null || pendingPlayers.get(uuid) == player) {
+            pendingPlayers.remove(uuid);
+            pendingLevels.remove(uuid);
+            pendingChunkMaps.remove(uuid);
+        }
+        if (player == null) {
+            addPlayerQueue.removeIf(queued -> queued.getUUID().equals(uuid));
+        }
+        else {
+            addPlayerQueue.removeIf(queued -> queued == player);
+        }
+        diaryUpdateMap.remove(uuid);
     }
     public static void eventAddPlayer(ServerBossEvent event, ServerPlayer player) {
         if (!playerEventMap.containsKey(player.getUUID())) {
@@ -98,6 +142,11 @@ public class Registry {
         Player player = packetContext.getPlayer();
         UUID uuid = player.getUUID();
         MentalStatus mentalStatus = Registry.mentalStatus.get(uuid);
+        if (mentalStatus == null) {
+            //玩家已退出并被清理后才到达的迟到选择包：没有可写入的状态，直接忽略（不能写进新会话 / 复活旧对象）
+            Depression.LOGGER.debug("[Depression/Save] ignore late mental trait packet from {} (no mental status)", uuid);
+            return;
+        }
         mentalStatus.loadMentalTrait(MentalTrait.byId(id));
         addPlayerQueue.add(player);
     }
@@ -107,6 +156,14 @@ public class Registry {
         Player player;
         while ((player = addPlayerQueue.poll()) != null) {
             UUID uuid = player.getUUID();
+            //身份与在线校验：队列里的实体必须就是当前 pending 的那个实体，且仍在线。
+            //否则（断线后迟到的选择包 / 同 UUID 已换成新会话）一律丢弃，不能把已移除的旧 ServerPlayer 重新塞进世界。
+            if (!(player instanceof ServerPlayer queued)
+                    || pendingPlayers.get(uuid) != queued
+                    || queued.server.getPlayerList().getPlayer(uuid) != queued) {
+                Depression.LOGGER.debug("[Depression/Save] drop stale pending-trait entry for {}", uuid);
+                continue;
+            }
             if (pendingChunkMaps.containsKey(uuid)) {
                 //待定期间挂起的区块跟踪请求，先补做一次
                 ChunkMap chunkMap = pendingChunkMaps.remove(uuid);

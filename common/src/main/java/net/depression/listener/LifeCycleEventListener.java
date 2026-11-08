@@ -16,6 +16,15 @@ import net.minecraft.world.item.crafting.Ingredient;
 
 
 public class LifeCycleEventListener {
+    /**
+     * 服务器停止（专服 /stop、单人退到标题、换世界）之后的全量清扫。
+     * 必须晚于 stopServer 内的 saveAll / removeAll / saveAllChunks（SERVER_STOPPED 在 stopServer 全部完成之后触发），
+     * 因此不会抢在任何一次保存之前清内存；单人房主的持久状态也在这里才清（PlayerList.remove RETURN 对房主不清）。
+     */
+    public static void onServerStopped(MinecraftServer server) {
+        net.depression.server.PlayerSaveLifecycle.onServerStopped();
+    }
+
     public static void onServerStart(MinecraftServer server) {
         net.depression.server.Registry.init();
         RegistryAccess registryAccess = server.registryAccess();

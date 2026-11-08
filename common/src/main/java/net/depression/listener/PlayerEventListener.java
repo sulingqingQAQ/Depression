@@ -16,10 +16,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 
 public class PlayerEventListener {
-    public static void onPlayerQuit(ServerPlayer player) { //如果玩家退出 那么将玩家加入退出玩家列表
-        Registry.quitPlayers.add(player.getUUID());
-        Registry.removeDiaryUpdate(player.getUUID()); //M4: 同时清除挂起的日记更新, 防止陈旧 ItemStack 引用滞留(内存泄漏+跨重进误用)
-    }
+    //退出清理不再订阅 PLAYER_QUIT（它发生在 PlayerList.remove 的保存之前）：
+    //持久状态与瞬态数据统一由 PlayerList.remove 的 RETURN 清理（PlayerSaveLifecycle.finishLogout）。
     public static void onSmeltItem(Player player, ItemStack item) {
         if (player.level().isClientSide() || player.isCreative()) {
             return;
