@@ -20,6 +20,7 @@ import net.depression.rhythmcraft.PlayingChart;
 import net.depression.rhythmcraft.ResourceReader;
 import net.depression.rhythmcraft.ResourceWriter;
 import net.depression.rhythmcraft.RhythmCraftProfile;
+import net.depression.server.PendingGrants;
 import net.depression.server.Registry;
 import net.depression.sound.ModSounds;
 import net.depression.util.Tools;
@@ -82,7 +83,7 @@ public final class Depression {
                     RhythmCraftPacket.PLAY_SONG_PACKET, RhythmCraftPacket.ACCEPT_EDIT_PACKET,
                     RhythmCraftPacket.NOTE_CHANGE_PACKET, RhythmCraftPacket.GAMEPLAY_CHANGE_PACKET,
                     RhythmCraftPacket.TIME_CHANGE_PACKET, RhythmCraftPacket.GAME_END_PACKET,
-                    RhythmCraftPacket.SPACE_CHANGE_PACKET}) {
+                    RhythmCraftPacket.SPACE_CHANGE_PACKET, RhythmCraftPacket.SESSION_END_PACKET}) {
                 NetworkManager.registerS2CPayloadType(id);
             }
         }
@@ -97,6 +98,8 @@ public final class Depression {
         EntityEvent.LIVING_CHECK_SPAWN.register(EntityEventListener::onEntityCheckSpawn);
         LifecycleEvent.SERVER_BEFORE_START.register(LifeCycleEventListener::onServerStart);
         LifecycleEvent.SERVER_STOPPED.register(LifeCycleEventListener::onServerStopped);
+        //I8 兜底：停服时没补上的音游结果（PendingGrants）在该玩家下次进服时补发（此时 .dat 已读完）
+        PlayerEvent.PLAYER_JOIN.register(PendingGrants::onPlayerJoin);
         TickEvent.SERVER_POST.register(TickEventListener::onServerTick);
         TickEvent.SERVER_LEVEL_POST.register(TickEventListener::onServerLevelTick);
         InteractionEvent.RIGHT_CLICK_BLOCK.register(InteractionEventListener::onRightClickBlock);

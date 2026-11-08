@@ -104,7 +104,13 @@ public abstract class MinecraftServerMixin {
         }
         PlayingChart.cleanupStaleCharts(); //B：先回收结束/断连的谱面，避免继续 tick 已关闭的维度
         for (PlayingChart playingChart : new ArrayList<>(PlayingChart.playingCharts.values())) {
-            playingChart.tick(booleanSupplier);
+            //用户已定（决策二）：单局 tick 抛异常只终止这一局并恢复玩家，不让一首歌的 bug 打崩整台服务器的 tick。
+            //不捕获 Error（OOM 等照常抛）；恢复本身再失败时按 RESTORE_FAILED 隔离，不重复抛。
+            try {
+                playingChart.tick(booleanSupplier);
+            } catch (Exception e) {
+                PlayingChart.handleTickFailure(playingChart, e);
+            }
         }
     }
 
@@ -120,8 +126,21 @@ public abstract class MinecraftServerMixin {
         }
     }
 
+    /**
+     * I8（用户已定）：{@code stopServer} 里 {@code PlayerList.saveAll} <b>之前</b>把已结算局结算掉
+     * （恢复玩家 + 补成绩 / 治疗 + 关局 + 移出 playingCharts），随后原版 saveAll 按正常路径写这名玩家。
+     * 未结算局仍留在表里、保存照旧被拦截（磁盘为准）。
+     * <p>
+     * 用符号锚点（INVOKE target = PlayerList;saveAll()V），与 21.1.219 / 21.1.230 的字节码偏移差无关；
+     * 本方法的记录跟着 offset 224 的 saveAllChunks 落盘。
+     */
+    @Inject(method = "stopServer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;saveAll()V"))
+    private void settleRhythmBeforeSaveAll(CallbackInfo ci) {
+        PlayingChart.settleBeforeStopSave();
+    }
+
     @Inject(method = "stopServer", at = @At(value = "RETURN"))
     private void disposePlayingCharts(CallbackInfo ci) {
-        PlayingChart.disposeAll(); //B：关服兜底，回收所有残留谱面维度
+        PlayingChart.disposeAll(); //B：关服兜底，回收所有残留谱面维度并清空静态字段（C11 / C09）
     }
 }

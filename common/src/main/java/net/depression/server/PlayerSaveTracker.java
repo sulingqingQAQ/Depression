@@ -158,8 +158,12 @@ public final class PlayerSaveTracker {
     // ---------------------------------------------------------------- PlayerDataStorage.save 的三个观测点
 
     public static void onSaveBegin(Player player) {
-        boolean running = !(player instanceof ServerPlayer serverPlayer) || serverPlayer.server.isRunning();
-        onSaveBegin(player.getUUID(), player.getGameProfile().getName(), running);
+        //t69 实证（javap，21.1.219 / 21.1.230 两版一致）：stopServer 期间 running 仍可能为 true——
+        //running 只由构造器与 halt(boolean) 写 false，而 crash / throwable 两条退出路径不经过 halt；
+        //stopped 由 runServer 三条退出路径各自在 stopServer() 之前写，所以“正在停服”的精确判据是 isStopped()。
+        boolean stopping = player instanceof ServerPlayer serverPlayer && serverPlayer.server != null
+                && serverPlayer.server.isStopped();
+        onSaveBegin(player.getUUID(), player.getGameProfile().getName(), !stopping);
     }
 
     static void onSaveBegin(UUID id, String name, boolean serverRunning) {

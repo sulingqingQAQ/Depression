@@ -94,6 +94,9 @@ public class DepressionClient {
                 RhythmCraftPacket.GAME_END_PACKET, ClientPlayingChart::receiveGameEndPacket);
         NetworkManager.registerReceiver(NetworkManager.Side.S2C,
                 RhythmCraftPacket.SPACE_CHANGE_PACKET, ClientPlayingChart::receiveSpaceChangePacket);
+        //服务端收尾通知（§4.8）：开局失败 / 重生 / 超时 / 隔离 / 退出等路径，客户端据此 abortLocal() 摘屏
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C,
+                RhythmCraftPacket.SESSION_END_PACKET, ClientPlayingChart::receiveSessionEndPacket);
 
         ClientGuiEvent.RENDER_HUD.register(clientMentalStatus::renderHud);
         ClientGuiEvent.RENDER_HUD.register(GameGuiRenderer::renderHud);

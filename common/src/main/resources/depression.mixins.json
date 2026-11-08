@@ -47,6 +47,7 @@
     "rhythmcraft.PlayerListAccessor",
     "rhythmcraft.PrimaryLevelDataAccessor",
     "rhythmcraft.PrimaryLevelDataMixin",
+    "rhythmcraft.RhythmPlayerListRespawnMixin",
     "rhythmcraft.SaplingBlockMixin",
     "symptom.BowItemMixin",
     "symptom.CrossbowItemMixin",

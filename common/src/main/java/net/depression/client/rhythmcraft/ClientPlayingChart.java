@@ -1,6 +1,7 @@
 package net.depression.client.rhythmcraft;
 
 import dev.architectury.networking.NetworkManager;
+import net.depression.Depression;
 import net.depression.client.DepressionClient;
 import net.depression.mixin.rhythmcraft.EntityAccessor;
 import net.depression.network.RhythmCraftPacket;
@@ -9,6 +10,7 @@ import net.depression.rhythmcraft.Song;
 import net.depression.screen.OffsetButton;
 import net.depression.screen.PosOrigin;
 import net.depression.screen.rhythmcraft.GameEndScreen;
+import net.depression.screen.rhythmcraft.RCLoadingScreen;
 import net.depression.screen.rhythmcraft.RCSelectionScreen;
 import net.depression.screen.rhythmcraft.SongProgressSlider;
 import net.depression.util.OggStreamPlayer;
@@ -124,6 +126,9 @@ public class ClientPlayingChart {
 
     public static void receivePlaySongPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
+        if (playingChart == null) { //服务端已收尾（SESSION_END）后迟到的包
+            return;
+        }
         playingChart.isPlaying = true;
         try {
             if (playingChart.isEditMode) {
@@ -184,24 +189,41 @@ public class ClientPlayingChart {
         BlockPos pos = buf.readBlockPos();
         boolean isAdd = buf.readBoolean();
         ClientPlayingChart playingChart = DepressionClient.playingChart;
+        if (playingChart == null) { //收尾后迟到的包（M35）
+            return;
+        }
         if (isAdd) {
             playingChart.renderNote(pos);
         }
         else {
-            playingChart.highlightedNotes.remove(pos).setRemoved(Entity.RemovalReason.DISCARDED);
+            Shulker shulker = playingChart.highlightedNotes.remove(pos);
+            if (shulker != null) {
+                shulker.setRemoved(Entity.RemovalReason.DISCARDED);
+            }
         }
     }
     public static void receiveGameplayChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
+        if (playingChart == null) {
+            return;
+        }
         playingChart.score.set(buf.readInt());
         playingChart.combo.set(buf.readInt());
     }
     public static void receiveTimeChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
         long time = buf.readLong();
+        if (playingChart == null) {
+            return;
+        }
         Minecraft.getInstance().execute(() -> {
+            if (DepressionClient.playingChart != playingChart) { //排队期间已被收尾
+                return;
+            }
             playingChart.isTimeFreeze = false;
-            Minecraft.getInstance().level.setDayTime(time);
+            if (Minecraft.getInstance().level != null) {
+                Minecraft.getInstance().level.setDayTime(time);
+            }
             playingChart.isTimeFreeze = true;
         });
     }
@@ -226,6 +248,53 @@ public class ClientPlayingChart {
 
     public static void receiveSpaceChangePacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
         ClientPlayingChart playingChart = DepressionClient.playingChart;
-        playingChart.spaceInTicks = buf.readInt();
+        int space = buf.readInt();
+        if (playingChart == null) {
+            return;
+        }
+        playingChart.spaceInTicks = space;
+    }
+
+    /**
+     * 服务端收尾通知（§4.8）：这一局已经（或已经无法）收尾，本地局对象必须丢弃。
+     * RESTORE_FAILED 额外给一行聊天提示（rt69-03：服务端在恢复失败当刻就发，客户端不能停在加载 / 结算屏）。
+     */
+    public static void receiveSessionEndPacket(RegistryFriendlyByteBuf buf, NetworkManager.PacketContext packetContext) {
+        int reasonCode = buf.readInt();
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.execute(() -> {
+            abortLocal();
+            if (reasonCode == RhythmCraftPacket.SESSION_END_REASON_RESTORE_FAILED && minecraft.player != null) {
+                minecraft.player.displayClientMessage(
+                        Component.translatableWithFallback("message.depression.rc_restore_failed",
+                                "Rhythm chart could not be restored; returning to your world"), false);
+            }
+        });
+    }
+
+    /**
+     * 客户端本地摘局：移除全部高亮 Shulker、丢弃 playingChart、停 Ogg、关掉加载 / 结算屏。
+     * 幂等；只在客户端主线程调用（收包路径统一先 {@code Minecraft.execute}）。
+     */
+    public static void abortLocal() {
+        ClientPlayingChart playingChart = DepressionClient.playingChart;
+        if (playingChart != null && playingChart.highlightedNotes != null) {
+            for (Shulker shulker : playingChart.highlightedNotes.values()) {
+                if (shulker != null) {
+                    shulker.setRemoved(Entity.RemovalReason.DISCARDED);
+                }
+            }
+            playingChart.highlightedNotes.clear();
+        }
+        DepressionClient.playingChart = null;
+        try {
+            DepressionClient.oggStreamPlayer.stop();
+        } catch (Exception e) {
+            Depression.LOGGER.debug("Failed to stop ogg player while aborting rhythm chart", e);
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof RCLoadingScreen || minecraft.screen instanceof GameEndScreen) {
+            minecraft.setScreen(null);
+        }
     }
 }
