@@ -216,6 +216,10 @@ public class PTSDManager {
         return !remainingValue.isEmpty();
     }
 
+    public double getCurrentMaxPTSDValue() {
+        return currentMaxPTSDValue;
+    }
+
     public void clear(ServerPlayer player) {
         contactValue.clear();
         remainingValue.clear();
