@@ -280,6 +280,7 @@ public class MentalStatus {
                     if (player.level().getBrightness(LightLayer.SKY, player.blockPosition()) >= 13) {
                         amplifier *= 1.5d;
                     }
+                    amplifier *= MentalModifiers.negativeEmotionStabilize(player);
                     emotionValue += EMOTION_STABILIZE_RATE * Math.abs(emotionValue) / 20d * amplifier;
                     emotionValue = Math.min(0d, emotionValue); //保证情绪值归0
                 } else {
@@ -424,6 +425,9 @@ public class MentalStatus {
         if (player.isCreative() || player.isSpectator()) {
             return;
         }
+        if (value > 0d) {
+            value *= MentalModifiers.emotionDamage(player); //附属模组的心理伤害倍率（无提供者时恒为 1）
+        }
         emotionValue -= value; //情绪值 -= 伤害值
         emotionValue = Math.max(-20d, emotionValue); //保证情绪值不超过下限
     }
@@ -567,10 +571,12 @@ public class MentalStatus {
         private final int minChunkZ;
         private final int chunkSpanZ;
         private final LevelChunk[] loadedChunks;
+        private final Map<String, Integer> boredomSnapshot;
 
         private HealBlockScanSnapshot(MinecraftServer server, ServerPlayer player, Level level, int sessionEpoch,
                                       int submitTick, BlockPos center, int radius,
-                                      int minChunkX, int minChunkZ, int chunkSpanZ, LevelChunk[] loadedChunks) {
+                                      int minChunkX, int minChunkZ, int chunkSpanZ, LevelChunk[] loadedChunks,
+                                      Map<String, Integer> boredomSnapshot) {
             this.server = server;
             this.player = player;
             this.level = level;
@@ -582,6 +588,7 @@ public class MentalStatus {
             this.minChunkZ = minChunkZ;
             this.chunkSpanZ = chunkSpanZ;
             this.loadedChunks = loadedChunks;
+            this.boredomSnapshot = boredomSnapshot;
         }
     }
 
@@ -612,7 +619,7 @@ public class MentalStatus {
         }
     }
 
-    //在主线程抓取本次扫描的快照（只取已加载区块，不触发区块加载），后台线程只读使用
+    //在主线程抓取本次扫描的快照（只取已加载区块，不触发区块加载），后台线程只读使用；无聊值随提交时冻结
     private HealBlockScanSnapshot snapshotHealBlockScan() {
         ServerPlayer scanningPlayer = sessionPlayer;
         int r = radiusMaxValue;
@@ -640,7 +647,7 @@ public class MentalStatus {
             }
         }
         return new HealBlockScanSnapshot(server, scanningPlayer, level, sessionEpoch, server.getTickCount(),
-                center, r, minChunkX, minChunkZ, chunkSpanZ, loadedChunks);
+                center, r, minChunkX, minChunkZ, chunkSpanZ, loadedChunks, new HashMap<>(boredom));
     }
 
     //后台线程：把球形范围扫成"类型 -> 聚合治疗值"，不产生任何副作用
@@ -682,7 +689,7 @@ public class MentalStatus {
                     }
                     HealBlockInfo info = blockInfoCache.get(block);
                     if (info == null) {
-                        info = resolveHealBlockInfo(block);
+                        info = resolveHealBlockInfo(block, snapshot.boredomSnapshot);
                         blockInfoCache.put(block, info);
                     }
                     if (!info.isHealBlock()) {
@@ -770,16 +777,16 @@ public class MentalStatus {
     }
 
     //方块 -> 治疗信息：注册名、名称组件与治疗值每种方块只解析一次（原来每格都解析一遍）
-    private HealBlockInfo resolveHealBlockInfo(Block block) {
+    private HealBlockInfo resolveHealBlockInfo(Block block, Map<String, Integer> boredomSnapshot) {
         String id = block.arch$registryName().toString();
-        Double value = getTypeHealValue(id);
-        Integer radius = nearbyHealBlockRadius.get(id);
-        if (value == null || radius == null) {
-            return HealBlockInfo.NONE;
-        }
         String type = nearbyHealBlockType.get(id);
         if (type == null) {
             type = id;
+        }
+        Double value = getTypeHealValue(id, type, boredomSnapshot);
+        Integer radius = nearbyHealBlockRadius.get(id);
+        if (value == null || radius == null) {
+            return HealBlockInfo.NONE;
         }
         return new HealBlockInfo(block.getName(), value, radius, type);
     }
@@ -803,26 +810,16 @@ public class MentalStatus {
         }
     }
 
-    private Double getTypeHealValue(String id) {
+    private Double getTypeHealValue(String id, String type, Map<String, Integer> boredomSnapshot) {
         Double value = nearbyHealBlockValue.get(id);
         if (value == null) {
             return null;
         }
-        if (nearbyHealBlockType.containsKey(id)) {
-            String type = nearbyHealBlockType.get(id);
-            if (boredom.containsKey(type)) {
-                return value / (boredom.get(type) / 2d);
-            }
-            else {
-                return value;
-            }
-        }
-        if (boredom.containsKey(id)) {
-            return value / (boredom.get(id) / 2d);
-        }
-        else {
+        Integer b = boredomSnapshot.get(type);
+        if (b == null) {
             return value;
         }
+        return value / (b / 2d);
     }
 
     public boolean isMania() {
